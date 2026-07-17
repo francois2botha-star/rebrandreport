@@ -11,7 +11,7 @@ interface NavigationItem {
   icon: LucideIcon;
 }
 
-export function AppShell({ navigation, children }: { navigation: NavigationItem[]; children: ReactNode }) {
+export function AppShell({ navigation, children, statusBanner }: { navigation: NavigationItem[]; children: ReactNode; statusBanner?: ReactNode }) {
   const { user, roleLabel, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -73,7 +73,10 @@ export function AppShell({ navigation, children }: { navigation: NavigationItem[
           </button>
         </aside>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">{children}</main>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
+          {statusBanner}
+          {children}
+        </main>
       </div>
     </div>
   );

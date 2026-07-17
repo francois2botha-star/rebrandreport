@@ -34,6 +34,9 @@ jobs:
         run: npm ci
 
       - name: Build
+        env:
+          VITE_SUPABASE_URL: https://plqrjfylolaukazldnuz.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_6PnWVQZkXD1dfGDtMak1ew_CdZaQHQH
         run: npm run build
 
       - name: Setup Pages

@@ -440,7 +440,7 @@ export function VoiceUpdatesPage() {
               className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Wand2 className="h-4 w-4" />
-              Review transcript
+              Send to review queue
             </button>
           </div>
 
@@ -481,6 +481,17 @@ export function VoiceUpdatesPage() {
               placeholder="PSG Hermanus is now in production. ABC Signage confirmed installation for 15 August. Cape Town Waterfront is delayed waiting for artwork approval."
             />
           </label>
+          <div className="mt-3 flex justify-end">
+            <button
+              type="button"
+              onClick={analyseTranscript}
+              disabled={!transcript.trim() || projects.length === 0}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Wand2 className="h-4 w-4" />
+              Send to review queue
+            </button>
+          </div>
 
           {notice ? <p className="mt-4 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">{notice}</p> : null}
           {appliedProjects.length > 0 ? (
@@ -512,7 +523,7 @@ export function VoiceUpdatesPage() {
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <ClipboardCheck className="h-4 w-4" />
-              {applyMutation.isPending ? 'Applying...' : 'Apply selected updates'}
+              {applyMutation.isPending ? 'Submitting...' : 'Submit selected to project'}
             </button>
           </div>
 

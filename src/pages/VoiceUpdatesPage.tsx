@@ -68,6 +68,36 @@ function splitTranscript(transcript: string) {
     .filter(Boolean);
 }
 
+function projectAliases(project: Project) {
+  const aliases = new Set([
+    project.branch,
+    project.id,
+    project.town,
+    project.branch.replace(/^PSG\s+/i, ''),
+  ]);
+
+  return [...aliases]
+    .map(normalise)
+    .filter((alias) => alias.length > 2);
+}
+
+function matchConfidence(segment: string, project: Project) {
+  const text = normalise(segment);
+  const aliases = projectAliases(project);
+
+  if (aliases.some((alias) => alias.length > 6 && text.includes(alias))) {
+    return 0.92;
+  }
+
+  const branchWords = normalise(project.branch).split(' ').filter((word) => word.length > 3);
+  const matchedWords = branchWords.filter((word) => text.includes(word)).length;
+  if (branchWords.length > 0 && matchedWords >= Math.min(2, branchWords.length)) {
+    return 0.76;
+  }
+
+  return 0;
+}
+
 function inferStage(segment: string): ProjectStage | undefined {
   const text = normalise(segment);
   const directStage = timelineStages.find((stage) => text.includes(normalise(stage)));
@@ -198,24 +228,21 @@ function matchProjects(projects: Project[], transcript: string): VoiceSuggestion
   const suggestions: VoiceSuggestion[] = [];
 
   for (const project of projects) {
-    const branch = normalise(project.branch);
-    const id = normalise(project.id);
-    const town = normalise(project.town);
-    const matchedSegment = segments.find((segment) => {
-      const text = normalise(segment);
-      return text.includes(branch) || text.includes(id) || (town.length > 4 && text.includes(town));
-    });
+    const matches = segments
+      .map((segment) => ({ segment, confidence: matchConfidence(segment, project) }))
+      .filter((match) => match.confidence > 0)
+      .sort((left, right) => right.confidence - left.confidence);
+    const matchedSegment = matches[0]?.segment;
 
     if (!matchedSegment) {
       continue;
     }
 
-    const text = normalise(matchedSegment);
     const currentStage = inferStage(matchedSegment);
     const status = inferStatus(matchedSegment, currentStage, project.status);
     const date = extractDate(matchedSegment);
     const tasks = extractTasks(matchedSegment);
-    const confidence = text.includes(branch) || text.includes(id) ? 0.92 : 0.68;
+    const confidence = matches[0].confidence;
 
     suggestions.push({
       id: `${project.id}-${suggestions.length}`,

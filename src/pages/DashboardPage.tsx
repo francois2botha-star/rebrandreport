@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { LifeBuoy } from 'lucide-react';
+import { FileText, LifeBuoy, Mic2 } from 'lucide-react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { ActivityFeed } from '../components/dashboard/ActivityFeed';
 import { TaskList } from '../components/dashboard/TaskList';
@@ -37,8 +37,38 @@ export function DashboardPage() {
         <p className="text-sm uppercase tracking-[0.32em] text-teal-200/80">{productBrand.workspace}</p>
         <h2 className="mt-3 text-3xl font-semibold text-white">Active workspace command centre.</h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-          Track approvals, suppliers, files, questions, voice updates, decisions, and closeout records for the projects already running in this client workspace.
+          Colourpix (Pty) Ltd manages this operational workspace for PSG Wealth Insure project delivery. Use it for project updates, voice notes, questions, approvals, files, and the shared project journal.
         </p>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <Link to="/voice-updates" className="group rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5 shadow-soft transition hover:border-sky-200/40 hover:bg-sky-500/15">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400 text-slate-950"><Mic2 className="h-5 w-5" /></span>
+            <div>
+              <p className="text-sm font-semibold text-white">Voice updates</p>
+              <p className="text-xs text-slate-400">Speak once, review, then apply project changes.</p>
+            </div>
+          </div>
+        </Link>
+        <Link to="/projects" className="group rounded-3xl border border-emerald-300/20 bg-emerald-500/10 p-5 shadow-soft transition hover:border-emerald-200/40 hover:bg-emerald-500/15">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-emerald-400 text-slate-950"><FileText className="h-5 w-5" /></span>
+            <div>
+              <p className="text-sm font-semibold text-white">Text project updates</p>
+              <p className="text-xs text-slate-400">Open a project to add comments, questions, and tasks.</p>
+            </div>
+          </div>
+        </Link>
+        <Link to="/support" className="group rounded-3xl border border-teal-300/20 bg-teal-500/10 p-5 shadow-soft transition hover:border-teal-200/40 hover:bg-teal-500/15">
+          <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-teal-300 text-slate-950"><LifeBuoy className="h-5 w-5" /></span>
+            <div>
+              <p className="text-sm font-semibold text-white">User interaction</p>
+              <p className="text-xs text-slate-400">Ask, answer, route, and resolve workspace needs.</p>
+            </div>
+          </div>
+        </Link>
       </section>
 
       <section className="grid gap-4">

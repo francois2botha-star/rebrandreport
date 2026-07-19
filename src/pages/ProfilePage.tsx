@@ -49,9 +49,9 @@ export function ProfilePage() {
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.16),rgba(2,6,23,0.72))] p-6 shadow-soft">
         <p className="text-sm uppercase tracking-[0.32em] text-teal-200/80">Profile</p>
-        <h2 className="mt-3 text-3xl font-semibold text-white">Control how you appear inside workspaces.</h2>
+        <h2 className="mt-3 text-3xl font-semibold text-white">Control how you appear to other project users.</h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-          Add a personal avatar, company name, or organisation logo so client users, workspace administrators, and delivery partners can recognise who is involved in the project record.
+          Add a personal avatar, company name, or organisation mark so Colourpix, PSG Wealth Insure, and delivery partners can recognise who is involved in each project record.
         </p>
       </section>
 
@@ -80,7 +80,7 @@ export function ProfilePage() {
               )}
               <div>
                 <p className="text-sm font-semibold text-white">{preview.company || 'Organisation identity'}</p>
-                <p className="text-xs leading-5 text-slate-500">Shown as your organisation mark where profile branding is supported.</p>
+                <p className="text-xs leading-5 text-slate-500">Shown as participant identity where profile marks are supported.</p>
               </div>
             </div>
           </div>
@@ -92,7 +92,7 @@ export function ProfilePage() {
             </div>
             <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
               <Building2 className="mt-0.5 h-5 w-5 text-sky-200" />
-              <p>Workspace administrators should approve organisation logos and client-facing workspace branding.</p>
+              <p>Workspace administrators should approve organisation marks that appear in shared project spaces.</p>
             </div>
             <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-slate-950/45 p-4">
               <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-200" />
@@ -119,7 +119,7 @@ export function ProfilePage() {
 
             <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
               Company or organisation
-              <input {...register('company')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-teal-300/50" placeholder="PSG, Colourpix, delivery partner, supplier..." />
+              <input {...register('company')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-teal-300/50" placeholder="PSG Wealth Insure, Colourpix, delivery partner..." />
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
@@ -129,7 +129,7 @@ export function ProfilePage() {
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
-              Organisation logo URL
+              Organisation mark URL
               <input {...register('logoUrl')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none placeholder:text-slate-500 focus:border-teal-300/50" placeholder="https://..." />
               {errors.logoUrl ? <span className="text-xs text-red-300">{errors.logoUrl.message}</span> : null}
             </label>

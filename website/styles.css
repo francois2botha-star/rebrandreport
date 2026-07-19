@@ -799,21 +799,7 @@ h3 {
   }
 
   .hero-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.45rem;
-  }
-
-  .hero-metrics div {
-    min-height: 88px;
-    padding: 0.65rem;
-  }
-
-  .hero-metrics dt {
-    font-size: 1.35rem;
-  }
-
-  .hero-metrics dd {
-    font-size: 0.72rem;
+    display: none;
   }
 
   .brand-pair {
@@ -827,6 +813,10 @@ h3 {
 
   .brand-card strong {
     font-size: 1rem;
+  }
+
+  .pipeline {
+    display: none;
   }
 
   .hero-actions,

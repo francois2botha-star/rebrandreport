@@ -270,8 +270,8 @@ export function ProjectDetailPage() {
       <section className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-white">Project Questions</h3>
-            <p className="mt-1 text-sm text-slate-400">Client users can request a stage update here. The workspace team can answer and update project details in the same response.</p>
+            <h3 className="text-lg font-semibold text-white">Questions and update requests</h3>
+            <p className="mt-1 text-sm text-slate-400">PSG Wealth Insure and Colourpix users can ask, answer, and update project details in the same thread.</p>
           </div>
           {unreadAnswers.length > 0 ? <span className="rounded-full border border-emerald-400/25 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-100">{unreadAnswers.length} new answer{unreadAnswers.length === 1 ? '' : 's'}</span> : null}
         </div>
@@ -280,7 +280,7 @@ export function ProjectDetailPage() {
           <div className="mt-5 grid gap-3 rounded-2xl border border-sky-400/15 bg-sky-500/10 p-4">
             <div className="grid gap-3 md:grid-cols-[1fr_220px]">
               <label className="grid gap-2 text-sm text-slate-300">
-                Question for workspace team
+                Question or update request
                 <textarea value={questionMessage} onChange={(event) => setQuestionMessage(event.target.value)} rows={3} placeholder="Please confirm whether artwork approval is still blocking this stage." className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50" />
               </label>
               <label className="grid content-start gap-2 text-sm text-slate-300">
@@ -495,7 +495,8 @@ export function ProjectDetailPage() {
             </div>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
-            <h3 className="text-lg font-semibold text-white">Communication Log</h3>
+            <h3 className="text-lg font-semibold text-white">Text updates and interaction log</h3>
+            <p className="mt-1 text-sm text-slate-400">Add short project updates, decisions, blockers, or handover notes for everyone assigned to this project.</p>
             <div className="mt-4 grid gap-3">
               <textarea value={commentMessage} disabled={!canAddComments} onChange={(event) => setCommentMessage(event.target.value)} rows={3} placeholder={canAddComments ? 'Add a project update...' : 'Commenting restricted'} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60" />
               <button type="button" disabled={!canAddComments || commentMutation.isPending || !commentMessage.trim()} onClick={() => commentMutation.mutate()} className="w-fit rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">

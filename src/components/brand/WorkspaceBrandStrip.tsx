@@ -29,20 +29,20 @@ function BrandMark({ name, logoUrl, fallback }: { name: string; logoUrl?: string
 export function WorkspaceBrandStrip({ workspace }: { workspace: Workspace }) {
   return (
     <section className="rounded-[2rem] border border-white/10 bg-slate-950/50 p-5 shadow-soft">
-      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Workspace brands</p>
+      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Workspace context</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <article className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
           <BrandMark name={workspace.clientCompany} logoUrl={workspace.clientLogoUrl} />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{workspace.clientCompany}</p>
-            <p className="text-xs leading-5 text-slate-500">Client workspace</p>
+            <p className="text-xs leading-5 text-slate-500">Client context</p>
           </div>
         </article>
         <article className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
           <BrandMark name={workspace.graphicsPartner} logoUrl={workspace.servicePartnerLogoUrl} fallback="colourpix" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-white">{workspace.graphicsPartner}</p>
-            <p className="text-xs leading-5 text-slate-500">Workspace administrator / service partner</p>
+            <p className="text-xs leading-5 text-slate-500">Workspace administrator</p>
           </div>
         </article>
       </div>

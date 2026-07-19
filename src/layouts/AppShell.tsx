@@ -66,9 +66,9 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
 
           <div className="mb-6 rounded-2xl border border-teal-400/15 bg-teal-400/8 p-4 text-xs text-slate-300">
             <p className="font-medium text-white">{productBrand.workspace}</p>
-            <p className="mt-1 text-slate-400">Workspace for {productBrand.customer}</p>
-            <p className="mt-1 text-slate-500">Projects, requests, files, updates, and completion history in one place.</p>
-            <p className="mt-1 text-slate-500">In partnership with {productBrand.partner}</p>
+            <p className="mt-1 text-slate-400">Managed by {productBrand.partner}</p>
+            <p className="mt-1 text-slate-500">Client context: {productBrand.customer}</p>
+            <p className="mt-1 text-slate-500">Projects, questions, voice notes, text updates, files, and completion history in one place.</p>
             <div className="mt-4 flex items-center gap-2 rounded-2xl border border-white/10 bg-slate-950/35 p-2">
               <div className="grid h-9 w-9 place-items-center rounded-xl border border-sky-300/20 bg-sky-300/10 text-[0.68rem] font-semibold text-sky-100">{getInitials(defaultWorkspace.clientCompany)}</div>
               <div className="grid h-9 w-9 place-items-center rounded-xl border border-white/10 bg-slate-950/70 p-1.5">
@@ -78,7 +78,7 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
                   <span className="h-1 rounded-full bg-yellow-200" />
                 </div>
               </div>
-              <span className="text-slate-500">client + workspace brands</span>
+              <span className="text-slate-500">workspace context</span>
             </div>
           </div>
 

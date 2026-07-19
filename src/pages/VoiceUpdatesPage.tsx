@@ -58,7 +58,7 @@ const voicePromptChips = [
   'Say what is blocking progress',
   'End with follow-up tasks',
 ];
-const sampleVoiceUpdate = 'Hermanus project is now in production. The delivery partner confirmed installation for 15 August. Please follow up the outstanding approval.';
+const sampleVoiceUpdate = 'PSG Wealth Insure Hermanus is now in production. The delivery partner confirmed installation for 15 August. Please follow up the outstanding approval.';
 
 function progressForStage(stage: ProjectStage) {
   const index = timelineStages.indexOf(stage);
@@ -547,7 +547,7 @@ export function VoiceUpdatesPage() {
             <p className="text-sm uppercase tracking-[0.28em] text-sky-300">Voice updates</p>
             <h2 className="mt-3 text-2xl font-semibold text-white sm:text-3xl">Speak once. Review carefully. Update the workspace.</h2>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-              Capture site feedback on mobile, match it to projects, then save only the updates you approve.
+              Capture Colourpix and PSG Wealth Insure site feedback on mobile, match it to projects, then save only the updates you approve.
             </p>
           </div>
           <div className="rounded-2xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-100">
@@ -651,7 +651,7 @@ export function VoiceUpdatesPage() {
               onChange={(event) => updateTranscript(event.target.value)}
               rows={10}
               className="min-h-56 rounded-3xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base leading-7 text-white outline-none transition placeholder:text-slate-500 focus:border-sky-400/50 sm:min-h-72 sm:text-sm sm:leading-6"
-              placeholder="PSG Hermanus is now in production. ABC Signage confirmed installation for 15 August. Cape Town Waterfront is delayed waiting for artwork approval."
+              placeholder="PSG Wealth Insure Hermanus is now in production. ABC Signage confirmed installation for 15 August. Cape Town Waterfront is delayed waiting for artwork approval."
             />
           </label>
           <div className="mt-3 grid gap-3 sm:flex sm:justify-end">

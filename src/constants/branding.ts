@@ -17,6 +17,7 @@ export const userAgreementPoints = [
   'Communications may be retained.',
   'Administrators may audit activity.',
   'AI suggestions require human approval.',
+  'Completed project records may be archived or removed after completion by Colourpix or RolloutHQ; users should keep their own copies of critical documents where required.',
   'Files remain the property of their respective owners.',
   'RolloutHQ™ is licensed software.',
 ] as const;

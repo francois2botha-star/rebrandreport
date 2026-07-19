@@ -35,6 +35,7 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
           <div className="mb-6 rounded-2xl border border-teal-400/15 bg-teal-400/8 p-4 text-xs text-slate-300">
             <p className="font-medium text-white">{productBrand.workspace}</p>
             <p className="mt-1 text-slate-400">Client workspace for {productBrand.customer}</p>
+            <p className="mt-1 text-slate-500">Projects, quote requests, files, and completion history in one place.</p>
             <p className="mt-1 text-slate-500">In partnership with {productBrand.partner}</p>
           </div>
 

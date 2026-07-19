@@ -14,6 +14,10 @@ const sections = [
     body: 'All significant actions performed within the system are recorded for accountability and operational history.',
   },
   {
+    title: 'Project Data Retention',
+    body: 'RolloutHQ™ is an operational workspace and project database, but it is not guaranteed to be a permanent archive after a project is marked completed by Colourpix or RolloutHQ. Completed records, files, communications, and related project data may be archived, exported, or removed as part of operational cleanup. Users remain responsible for keeping independent copies of documents they are legally, financially, or operationally required to retain.',
+  },
+  {
     title: 'AI Disclaimer',
     body: 'Artificial Intelligence features provide recommendations only. Users remain responsible for reviewing and approving any suggested project updates before they become official records.',
   },

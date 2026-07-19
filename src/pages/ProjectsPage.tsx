@@ -7,6 +7,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { can, canChangeProjectStage, filterProjectsForUser } from '../utils/permissions';
 import { timelineStages } from '../constants/portal';
 import type { Project, ProjectStage, ProjectStatus } from '../types/domain';
+import { QuoteRequestForm } from '../components/workspaces/QuoteRequestForm';
+import { productBrand } from '../constants/branding';
 
 function progressForStage(stage: ProjectStage) {
   const index = timelineStages.indexOf(stage);
@@ -41,6 +43,8 @@ export function ProjectsPage() {
     queryFn: getProjects,
   });
   const projects = filterProjectsForUser(data ?? [], user);
+  const activeWorkspace = projects[0]?.workspaceName ?? productBrand.workspace;
+  const activeClient = projects[0]?.clientCompany ?? productBrand.customer;
   const workflowMutation = useMutation({
     mutationFn: ({ project, stage }: { project: Project; stage: ProjectStage }) => {
       if (!canChangeProjectStage(user, project, stage)) {
@@ -70,6 +74,14 @@ export function ProjectsPage() {
         <h2 className="text-2xl font-semibold text-white">Projects</h2>
         <p className="mt-2 text-sm text-slate-400">Browse the projects available in your workspaces, then drill into the project record for files, questions, journal entries, and timeline details.</p>
       </section>
+
+      <QuoteRequestForm
+        user={user}
+        workspaceName={activeWorkspace}
+        organisation={activeClient}
+        allowedRequestTypes={['project_quote']}
+        defaultRequestType="project_quote"
+      />
 
       {can(user, 'create_project') ? <ProjectCreateForm /> : null}
 

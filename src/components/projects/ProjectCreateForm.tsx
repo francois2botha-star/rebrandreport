@@ -102,7 +102,7 @@ export function ProjectCreateForm() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-white">Add project</h3>
-          <p className="mt-1 text-sm text-slate-400">Create a new rollout directly in Supabase.</p>
+          <p className="mt-1 text-sm text-slate-400">Add an approved project to the selected workspace database.</p>
         </div>
         <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">Database write path</p>
       </div>

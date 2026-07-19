@@ -5,9 +5,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createProject, type CreateProjectInput } from '../../services/portalService';
 import { timelineStages } from '../../constants/portal';
+import { defaultGraphicsPartner, defaultWorkspace } from '../../constants/workspaces';
 
 const projectSchema = z.object({
   id: z.string().min(3, 'Project ID is required'),
+  workspaceName: z.string().min(2, 'Workspace is required'),
+  clientCompany: z.string().min(2, 'Client company is required'),
+  graphicsPartner: z.string().min(2, 'Graphics partner is required'),
   province: z.string().min(2, 'Province is required'),
   town: z.string().min(2, 'Town is required'),
   branch: z.string().min(2, 'Branch is required'),
@@ -38,6 +42,9 @@ export function ProjectCreateForm() {
     resolver: zodResolver(projectSchema),
     defaultValues: {
       id: defaultProjectId,
+      workspaceName: defaultWorkspace.name,
+      clientCompany: defaultWorkspace.clientCompany,
+      graphicsPartner: defaultGraphicsPartner,
       province: '',
       town: '',
       branch: '',
@@ -62,6 +69,9 @@ export function ProjectCreateForm() {
       await queryClient.invalidateQueries({ queryKey: ['portal-summary'] });
       reset({
         id: generateProjectId(),
+        workspaceName: defaultWorkspace.name,
+        clientCompany: defaultWorkspace.clientCompany,
+        graphicsPartner: defaultGraphicsPartner,
         province: '',
         town: '',
         branch: '',
@@ -102,6 +112,24 @@ export function ProjectCreateForm() {
           Project ID
           <input {...register('id')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.id ? <span className="text-xs text-red-300">{errors.id.message}</span> : null}
+        </label>
+
+        <label className="grid gap-2 text-sm text-slate-300">
+          Workspace
+          <input {...register('workspaceName')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
+          {errors.workspaceName ? <span className="text-xs text-red-300">{errors.workspaceName.message}</span> : null}
+        </label>
+
+        <label className="grid gap-2 text-sm text-slate-300">
+          Client company
+          <input {...register('clientCompany')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
+          {errors.clientCompany ? <span className="text-xs text-red-300">{errors.clientCompany.message}</span> : null}
+        </label>
+
+        <label className="grid gap-2 text-sm text-slate-300">
+          Graphics partner
+          <input {...register('graphicsPartner')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
+          {errors.graphicsPartner ? <span className="text-xs text-red-300">{errors.graphicsPartner.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">

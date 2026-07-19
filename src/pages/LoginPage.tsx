@@ -9,6 +9,7 @@ import { roleLabels } from '../constants/portal';
 import type { Role } from '../types/domain';
 import { productBrand } from '../constants/branding';
 import { RolloutLogo } from '../components/brand/RolloutLogo';
+import { defaultGraphicsPartner } from '../constants/workspaces';
 
 const roles: Role[] = ['colourpix_admin', 'psg_head_office', 'psg_branch_manager', 'sign_company'];
 
@@ -18,9 +19,11 @@ const loginSchema = z.object({
 });
 
 const accessRequestSchema = z.object({
+  requestType: z.enum(['user_access', 'new_workspace']),
   name: z.string().trim().min(2, 'Enter your name'),
   email: z.string().trim().toLowerCase().email('Enter a valid email address'),
   organisation: z.string().trim().min(2, 'Enter your organisation'),
+  workspaceName: z.string().trim().min(2, 'Enter a workspace or project name'),
   roleRequested: z.string().trim().min(2, 'Enter the role or access you need'),
   reason: z.string().trim().min(10, 'Add a short reason for access'),
 });
@@ -59,9 +62,11 @@ export function LoginPage() {
   } = useForm<AccessRequestFormValues>({
     resolver: zodResolver(accessRequestSchema),
     defaultValues: {
+      requestType: 'user_access',
       name: '',
       email: '',
       organisation: '',
+      workspaceName: productBrand.workspace,
       roleRequested: '',
       reason: '',
     },
@@ -79,19 +84,22 @@ export function LoginPage() {
   });
 
   const onAccessRequestSubmit = handleAccessRequestSubmit((values) => {
-    const subject = `RolloutHQ access request - ${values.name}`;
+    const requestLabel = values.requestType === 'new_workspace' ? 'New workspace request' : 'User access request';
+    const subject = `RolloutHQ ${requestLabel.toLowerCase()} - ${values.organisation}`;
     const body = [
-      'Please add me as a RolloutHQ user.',
+      `Request type: ${requestLabel}`,
       '',
       `Name: ${values.name}`,
       `Email: ${values.email}`,
       `Organisation: ${values.organisation}`,
+      `Workspace / project: ${values.workspaceName}`,
       `Requested access: ${values.roleRequested}`,
+      `Default graphics partner: ${defaultGraphicsPartner}`,
       '',
       'Reason:',
       values.reason,
       '',
-      `Workspace: ${productBrand.workspace}`,
+      'RolloutHQ can create a dedicated workspace where client users, design partners, installers, and project teams only see the workspaces they belong to.',
     ].join('\n');
 
     window.location.href = `mailto:francois@colourpix.co.za?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -195,11 +203,23 @@ export function LoginPage() {
         <form onSubmit={onAccessRequestSubmit} className="mt-5 rounded-3xl border border-teal-400/15 bg-teal-400/8 p-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-white">Request access</p>
-              <p className="mt-1 text-sm leading-6 text-slate-400">Need to be added as a user? Send an access request to Francois.</p>
+              <p className="text-sm font-semibold text-white">Request access or a new workspace</p>
+              <p className="mt-1 text-sm leading-6 text-slate-400">New customers can request a dedicated rollout workspace. Colourpix is the default graphics partner at this stage.</p>
             </div>
             <span className="rounded-full border border-teal-300/25 bg-teal-300/10 px-3 py-1 text-xs font-semibold text-teal-100">francois@colourpix.co.za</span>
           </div>
+
+          <fieldset className="mt-4 grid gap-3 rounded-2xl border border-white/10 bg-slate-950/35 p-3 text-sm text-slate-200 md:grid-cols-2">
+            <legend className="px-1 text-xs uppercase tracking-[0.24em] text-slate-500">Request type</legend>
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <input type="radio" value="user_access" {...registerAccessRequest('requestType')} className="accent-teal-300" />
+              Add me to an existing workspace
+            </label>
+            <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <input type="radio" value="new_workspace" {...registerAccessRequest('requestType')} className="accent-teal-300" />
+              Start a new workspace
+            </label>
+          </fieldset>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm text-slate-300">
@@ -216,20 +236,26 @@ export function LoginPage() {
 
             <label className="grid gap-2 text-sm text-slate-300">
               Organisation
-              <input {...registerAccessRequest('organisation')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="Company or branch" />
+              <input {...registerAccessRequest('organisation')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="Client company, branch, or supplier" />
               {accessRequestErrors.organisation ? <span className="text-xs text-red-300">{accessRequestErrors.organisation.message}</span> : null}
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300">
+              Workspace or project
+              <input {...registerAccessRequest('workspaceName')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="National rollout, store upgrade, public signage..." />
+              {accessRequestErrors.workspaceName ? <span className="text-xs text-red-300">{accessRequestErrors.workspaceName.message}</span> : null}
+            </label>
+
+            <label className="grid gap-2 text-sm text-slate-300">
               Access needed
-              <input {...registerAccessRequest('roleRequested')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="Branch manager, head office, installer..." />
+              <input {...registerAccessRequest('roleRequested')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="Client admin, project manager, installer, viewer..." />
               {accessRequestErrors.roleRequested ? <span className="text-xs text-red-300">{accessRequestErrors.roleRequested.message}</span> : null}
             </label>
           </div>
 
           <label className="mt-4 grid gap-2 text-sm text-slate-300">
             Reason for access
-            <textarea rows={3} {...registerAccessRequest('reason')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="Tell us which project, branch, or rollout workspace you need access to." />
+            <textarea rows={3} {...registerAccessRequest('reason')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none transition placeholder:text-slate-500 focus:border-teal-300/50" placeholder="Tell us what rollout, branches, sites, or first project you want to manage." />
             {accessRequestErrors.reason ? <span className="text-xs text-red-300">{accessRequestErrors.reason.message}</span> : null}
           </label>
 

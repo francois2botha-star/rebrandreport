@@ -187,6 +187,10 @@ export function canViewProject(user: UserRecord | null | undefined, project: Pro
     return false;
   }
 
+  if (!user.canAccessAllWorkspaces && !user.workspaceIds?.includes('*') && !user.workspaceIds?.includes(project.workspaceId)) {
+    return false;
+  }
+
   const policy = rolePolicies[user.role].projectAccess;
 
   if (policy.canViewAllProjects) {

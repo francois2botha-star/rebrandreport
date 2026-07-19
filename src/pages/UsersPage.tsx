@@ -15,7 +15,7 @@ export function UsersPage() {
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-soft">
         <h2 className="text-2xl font-semibold text-white">Users</h2>
-        <p className="mt-2 text-sm text-slate-400">Manage Colourpix administrators, PSG staff, and sign company access permissions.</p>
+        <p className="mt-2 text-sm text-slate-400">Manage platform administrators, client users, partner teams, and delivery-company access by workspace.</p>
       </section>
 
       {profilesNotConfigured ? (
@@ -37,6 +37,7 @@ export function UsersPage() {
             <p className="mt-1 text-sm text-slate-400">{user.email}</p>
             <p className="mt-4 text-sm text-slate-300">Role: {user.role}</p>
             <p className="text-sm text-slate-300">Branch: {user.branch ?? 'All branches'}</p>
+            <p className="text-sm text-slate-300">Workspaces: {user.canAccessAllWorkspaces ? 'All workspaces' : user.workspaceIds?.join(', ') ?? 'Default workspace'}</p>
           </div>
         )) : (
           <div className="rounded-3xl border border-dashed border-white/15 bg-slate-950/40 p-6 text-sm text-slate-400 lg:col-span-2">

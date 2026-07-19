@@ -254,6 +254,9 @@ export function ProjectDetailPage() {
           {selectedProject.town}, {selectedProject.province} · Manager {selectedProject.manager} · Installer {selectedProject.installer}
         </p>
         <div className="mt-5 grid gap-3 md:grid-cols-4 text-sm text-slate-300">
+          <div>Workspace: <span className="text-white">{selectedProject.workspaceName}</span></div>
+          <div>Client: <span className="text-white">{selectedProject.clientCompany}</span></div>
+          <div>Design Partner: <span className="text-white">{selectedProject.graphicsPartner}</span></div>
           <div>Current Status: <span className="text-white">{selectedProject.currentStage}</span></div>
           <div>Target Date: <span className="text-white">{selectedProject.targetDate}</span></div>
           <div>Installation Date: <span className="text-white">{selectedProject.installationDate}</span></div>
@@ -267,7 +270,7 @@ export function ProjectDetailPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h3 className="text-lg font-semibold text-white">Project Questions</h3>
-            <p className="mt-1 text-sm text-slate-400">PSG can request a stage update here. Colourpix can answer and update project details in the same response.</p>
+            <p className="mt-1 text-sm text-slate-400">Client users can request a stage update here. The design partner can answer and update project details in the same response.</p>
           </div>
           {unreadAnswers.length > 0 ? <span className="rounded-full border border-emerald-400/25 bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-100">{unreadAnswers.length} new answer{unreadAnswers.length === 1 ? '' : 's'}</span> : null}
         </div>

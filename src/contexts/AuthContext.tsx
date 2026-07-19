@@ -3,6 +3,7 @@ import type { Role, UserRecord } from '../types/domain';
 import { loadSessionUser, sessionToUser, signInWithEmailPassword, signOutSession } from '../services/authService';
 import { supabase } from '../lib/supabase';
 import { roleLabels } from '../constants/portal';
+import { enrichWorkspaceAccess } from '../constants/workspaces';
 
 interface AuthContextValue {
   user: UserRecord | null;
@@ -61,11 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(sessionUser);
     },
     signInAs: (role) => {
-      setUser({
+      setUser(enrichWorkspaceAccess({
         name: roleLabels[role],
         role,
-        email: '',
-      });
+        email: role === 'colourpix_admin' ? 'francois@colourpix.co.za' : '',
+      }));
     },
     signOut: async () => {
       await signOutSession();

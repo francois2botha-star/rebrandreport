@@ -1,5 +1,14 @@
 export type Role = 'colourpix_admin' | 'psg_head_office' | 'psg_branch_manager' | 'sign_company';
 
+export interface Workspace {
+  id: string;
+  name: string;
+  clientCompany: string;
+  graphicsPartner: string;
+  description: string;
+  status: 'active' | 'planning' | 'archived';
+}
+
 export type ProjectStage =
   | 'New Project'
   | 'Awaiting Information'
@@ -27,6 +36,10 @@ export type ProjectStatus = 'completed' | 'in_progress' | 'awaiting_approval' | 
 
 export interface Project {
   id: string;
+  workspaceId: string;
+  workspaceName: string;
+  clientCompany: string;
+  graphicsPartner: string;
   province: string;
   town: string;
   branch: string;
@@ -94,4 +107,8 @@ export interface UserRecord {
   role: Role;
   branch?: string;
   email: string;
+  company?: string;
+  workspaceIds?: string[];
+  canAccessAllWorkspaces?: boolean;
+  isPlatformOwner?: boolean;
 }

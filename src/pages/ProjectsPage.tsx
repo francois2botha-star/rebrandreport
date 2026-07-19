@@ -68,7 +68,7 @@ export function ProjectsPage() {
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-white/10 bg-white/6 p-6 shadow-soft">
         <h2 className="text-2xl font-semibold text-white">Projects</h2>
-        <p className="mt-2 text-sm text-slate-400">Browse every branch rollout, then drill into the project record for files, comments, and timeline details.</p>
+        <p className="mt-2 text-sm text-slate-400">Browse the projects available in your workspaces, then drill into the project record for files, questions, journal entries, and timeline details.</p>
       </section>
 
       {can(user, 'create_project') ? <ProjectCreateForm /> : null}

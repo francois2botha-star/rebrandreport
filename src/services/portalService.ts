@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { ActivityItem, CommentItem, Project, ProjectFile, Role, TaskItem, UserRecord } from '../types/domain';
+import { defaultWorkspace } from '../constants/workspaces';
 
 export interface PortalSummary {
   metrics: Array<{ label: string; value: number }>;
@@ -9,6 +10,10 @@ export interface PortalSummary {
 
 type ProjectRow = {
   id: string;
+  workspace_id?: string | null;
+  workspace_name?: string | null;
+  client_company?: string | null;
+  graphics_partner?: string | null;
   province: string;
   town: string;
   branch: string;
@@ -161,6 +166,9 @@ function validateVoiceUpdateFile(file: File) {
 
 export type CreateProjectInput = {
   id: string;
+  workspaceName?: string;
+  clientCompany?: string;
+  graphicsPartner?: string;
   province: string;
   town: string;
   branch: string;
@@ -176,6 +184,10 @@ export type CreateProjectInput = {
   progress: number;
   notes: string;
 };
+
+function workspaceIdFromName(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || defaultWorkspace.id;
+}
 
 export type UpdateProjectWorkflowInput = {
   projectId: string;
@@ -271,6 +283,10 @@ function createActivity(title: string, detail: string, type: ActivityItem['type'
 function mapProjectRow(row: ProjectRow): Project {
   return {
     id: row.id,
+    workspaceId: row.workspace_id ?? defaultWorkspace.id,
+    workspaceName: row.workspace_name ?? defaultWorkspace.name,
+    clientCompany: row.client_company ?? defaultWorkspace.clientCompany,
+    graphicsPartner: row.graphics_partner ?? defaultWorkspace.graphicsPartner,
     province: row.province,
     town: row.town,
     branch: row.branch,
@@ -382,32 +398,55 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
 
   await hydrateAuthSession();
 
-  const { data, error } = await client
+  const workspaceName = input.workspaceName?.trim() || defaultWorkspace.name;
+  const clientCompany = input.clientCompany?.trim() || defaultWorkspace.clientCompany;
+  const graphicsPartner = input.graphicsPartner?.trim() || defaultWorkspace.graphicsPartner;
+  const basePayload = {
+    id: input.id,
+    province: input.province,
+    town: input.town,
+    branch: input.branch,
+    manager: input.manager,
+    manager_email: input.managerEmail,
+    installer: input.installer,
+    designer: input.designer,
+    current_stage: input.currentStage,
+    status: input.status,
+    target_date: input.targetDate,
+    installation_date: input.installationDate,
+    completion_date: input.completionDate,
+    progress: input.progress,
+    branch_manager_view_only: false,
+    notes: input.notes,
+    files: [],
+    tasks: [],
+    comments: [],
+    activity: [createActivity('Project Created', `${input.id} was created in ${workspaceName} for ${clientCompany}.`, 'success')],
+  };
+  const workspacePayload = {
+    ...basePayload,
+    workspace_id: workspaceIdFromName(workspaceName),
+    workspace_name: workspaceName,
+    client_company: clientCompany,
+    graphics_partner: graphicsPartner,
+  };
+
+  let { data, error } = await client
     .from('projects')
-    .insert({
-      id: input.id,
-      province: input.province,
-      town: input.town,
-      branch: input.branch,
-      manager: input.manager,
-      manager_email: input.managerEmail,
-      installer: input.installer,
-      designer: input.designer,
-      current_stage: input.currentStage,
-      status: input.status,
-      target_date: input.targetDate,
-      installation_date: input.installationDate,
-      completion_date: input.completionDate,
-      progress: input.progress,
-      branch_manager_view_only: false,
-      notes: input.notes,
-      files: [],
-      tasks: [],
-      comments: [],
-      activity: [],
-    })
+    .insert(workspacePayload)
     .select('*')
     .single();
+
+  if (error?.message.toLowerCase().includes('workspace_') || error?.message.toLowerCase().includes('client_company') || error?.message.toLowerCase().includes('graphics_partner')) {
+    const fallbackResult = await client
+      .from('projects')
+      .insert(basePayload)
+      .select('*')
+      .single();
+
+    data = fallbackResult.data;
+    error = fallbackResult.error;
+  }
 
   if (error || !data) {
     throw error ?? new Error('Unable to create project.');

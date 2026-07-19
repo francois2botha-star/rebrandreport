@@ -27,6 +27,8 @@ export function AboutPage() {
     ['Description', productBrand.description],
     ['Developer', productBrand.developer],
     ['Current License', productBrand.licensee],
+    ['Default Design Partner', productBrand.partner],
+    ['Current Client', productBrand.customer],
     ['Current Workspace', productBrand.workspace],
     ['Version', productBrand.version],
     ['Database', databaseStatus],

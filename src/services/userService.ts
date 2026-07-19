@@ -1,11 +1,14 @@
 import { supabase } from '../lib/supabase';
 import type { UserRecord } from '../types/domain';
+import { enrichWorkspaceAccess } from '../constants/workspaces';
 
 type ProfileRow = {
   name: string;
   role: UserRecord['role'];
   branch: string | null;
   email: string;
+  company?: string | null;
+  workspace_ids?: string[] | null;
 };
 
 export class UserProfilesNotConfiguredError extends Error {
@@ -40,10 +43,23 @@ export async function getUsers(): Promise<UserRecord[]> {
 
   await hydrateAuthSession();
 
-  const { data, error } = await supabase
+  const profileResult = await supabase
     .from('profiles')
-    .select('name, role, branch, email')
+    .select('name, role, branch, email, company, workspace_ids')
     .order('name', { ascending: true });
+
+  let data: Partial<ProfileRow>[] | null = profileResult.data as Partial<ProfileRow>[] | null;
+  let error = profileResult.error;
+
+  if (error?.message.toLowerCase().includes('company') || error?.message.toLowerCase().includes('workspace_ids')) {
+    const fallbackResult = await supabase
+      .from('profiles')
+      .select('name, role, branch, email')
+      .order('name', { ascending: true });
+
+    data = fallbackResult.data as Partial<ProfileRow>[] | null;
+    error = fallbackResult.error;
+  }
 
   if (error) {
     if (isMissingProfilesTable(error)) {
@@ -57,10 +73,12 @@ export async function getUsers(): Promise<UserRecord[]> {
     return [];
   }
 
-  return (data as ProfileRow[]).map((row) => ({
+  return (data as ProfileRow[]).map((row) => enrichWorkspaceAccess({
     name: row.name,
     role: row.role,
     branch: row.branch ?? undefined,
+    company: row.company ?? undefined,
+    workspaceIds: Array.isArray(row.workspace_ids) ? row.workspace_ids : undefined,
     email: row.email,
   }));
 }

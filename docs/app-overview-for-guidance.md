@@ -2,15 +2,15 @@
 
 ## Executive Summary
 
-RolloutHQ™ is intended to be a secure, role-aware enterprise workspace for managing multi-site rollout work. The application is licensed to Francois Botha, with the current workspace configured for the PSG National Signage Rollout and Colourpix (Pty) Ltd customer context. Its purpose is to replace scattered spreadsheets, WhatsApp messages, email threads, and manual status chasing with one shared project record for every branch.
+RolloutHQ™ is intended to be a secure, role-aware enterprise platform for managing multi-site rollout work across separate client workspaces. The application is licensed to Francois Botha, with the first workspace configured for the PSG National Signage Rollout and Colourpix (Pty) Ltd positioned as the default graphics and design partner at this stage. Its purpose is to replace scattered spreadsheets, WhatsApp messages, email threads, and manual status chasing with one shared project record for every site, branch, or public signage job.
 
-The platform gives Colourpix, PSG head office, PSG branch users, and delivery partners a controlled view of the rollout work relevant to them. It tracks each project from initial setup through surveys, artwork, approvals, quotations, production, installation, photos, client signoff, and completion.
+The platform gives platform owners, Colourpix, client head office teams, client branch or site users, and delivery partners a controlled view of the rollout work relevant to them. It tracks each project from initial setup through surveys, artwork, approvals, quotations, production, installation, photos, client signoff, and completion.
 
 The current version is a working production-oriented scaffold connected to Supabase for authentication, project data, file storage, role-based access, and live project updates. It already supports dashboard reporting, project workflow management, file uploads, comments, project Q&A requests, voice-note batch updates, search, maps, reports, and user profile management.
 
 ## Intended Use
 
-The app is intended to serve as the single operational source of truth for PSG signage rollout projects.
+The app is intended to serve as the single operational source of truth for signage rollout projects across multiple workspaces. PSG is the current active client workspace, but the product is intended to support other private and public signage projects over time.
 
 It should help the business answer questions such as:
 
@@ -20,10 +20,25 @@ It should help the business answer questions such as:
 - Which branches need PSG approval, artwork confirmation, a purchase order, photos, or signoff?
 - Which installer or sign company is assigned?
 - What journal entries, files, questions, tasks, decisions, and activity belong to each project?
-- Which PSG users are waiting for an answer from Colourpix?
+- Which client users are waiting for an answer from the design partner?
 - What has changed recently, and who made the update?
 
-The workspace is not meant to be a public website. It is an internal operational tool for managing the rollout and communicating status clearly between Colourpix, PSG, and suppliers.
+The authenticated workspace is not meant to be a public website. It is an internal operational tool for managing rollouts and communicating status clearly between clients, Colourpix, and suppliers. The public landing page may collect access and new-workspace requests, which can then be reviewed before users are invited.
+
+## Workspace Model
+
+RolloutHQ™ should support separate client workspaces so users only see the projects they are meant to see. A workspace can represent a national client rollout, a regional programme, a public signage programme, or a dedicated customer environment.
+
+The current default workspace is PSG National Signage Rollout. Future workspaces should carry at least:
+
+- Workspace name
+- Client company
+- Default graphics or design partner
+- Member users
+- Platform administrators
+- Project records and journal entries scoped to that workspace
+
+Francois Botha and Beverley should have all-workspace administrative access. Other users should belong only to the specific workspaces they are invited into. Colourpix (Pty) Ltd is currently the default design partner for all workspaces and should be presented as "in partnership with Colourpix (Pty) Ltd" rather than as the licence owner.
 
 ## Recommended Product Direction: One Project Journal
 

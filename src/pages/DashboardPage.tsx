@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { FileText, LifeBuoy, Mic2 } from 'lucide-react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { ActivityFeed } from '../components/dashboard/ActivityFeed';
-import { TaskList } from '../components/dashboard/TaskList';
 import { getProjects } from '../services/portalService';
 import { useAuth } from '../contexts/AuthContext';
 import { filterProjectsForUser } from '../utils/permissions';
@@ -17,7 +16,16 @@ export function DashboardPage() {
   });
   const scopedProjects = filterProjectsForUser(projects, user);
   const recentActivity = scopedProjects.flatMap((project) => project.activity).slice(0, 4);
-  const todayTasks = [...new Set(scopedProjects.flatMap((project) => project.tasks.filter((task) => !task.completed).map((task) => task.text)))].slice(0, 3);
+  const userEmail = user?.email.toLowerCase() ?? '';
+  const userName = user?.name.toLowerCase() ?? '';
+  const myTasks = scopedProjects.flatMap((project) => project.tasks
+    .filter((task) => !task.completed && ((task.assigneeEmail?.toLowerCase() ?? '') === userEmail || (task.assigneeName?.toLowerCase() ?? '') === userName))
+    .map((task) => ({ ...task, projectId: project.id, branch: project.branch, town: project.town })))
+    .slice(0, 8);
+  const openQuestions = scopedProjects.flatMap((project) => project.comments
+    .filter((comment) => comment.kind === 'question' && comment.status !== 'answered')
+    .map((comment) => ({ ...comment, projectId: project.id, branch: project.branch })))
+    .slice(0, 4);
   const metrics = [
     { label: 'Projects', value: scopedProjects.length },
     { label: 'Completed', value: scopedProjects.filter((project) => project.status === 'completed').length },
@@ -30,7 +38,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <section className="rounded-[2rem] border border-white/10 bg-[linear-gradient(135deg,rgba(14,165,233,0.18),rgba(2,6,23,0.65))] p-6 shadow-soft">
         <p className="text-sm uppercase tracking-[0.32em] text-teal-200/80">{productBrand.workspace}</p>
-        <h2 className="mt-3 text-3xl font-semibold text-white">Dashboard</h2>
+        <h2 className="mt-3 text-3xl font-semibold text-white">Today</h2>
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
@@ -69,9 +77,40 @@ export function DashboardPage() {
         ))}
       </section>
 
+      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="rounded-[2rem] border border-white/10 bg-white/6 p-5 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-lg font-semibold text-white">My Tasks</h3>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-300">{myTasks.length}</span>
+          </div>
+          <div className="mt-4 grid gap-3">
+            {myTasks.length > 0 ? myTasks.map((task) => (
+              <Link key={`${task.projectId}-${task.id}`} to={`/projects/${task.projectId}`} className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 transition hover:border-sky-400/30 hover:bg-slate-950/70">
+                <p className="text-sm font-semibold text-white">{task.text}</p>
+                <p className="mt-1 text-xs text-slate-400">{task.branch} · {task.town}</p>
+              </Link>
+            )) : (
+              <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-slate-400">No assigned tasks waiting.</div>
+            )}
+          </div>
+        </div>
+        <div className="rounded-[2rem] border border-white/10 bg-white/6 p-5 shadow-soft">
+          <h3 className="text-lg font-semibold text-white">Responses</h3>
+          <div className="mt-4 grid gap-3">
+            {openQuestions.length > 0 ? openQuestions.map((question) => (
+              <Link key={question.id} to={`/projects/${question.projectId}`} className="rounded-2xl border border-white/10 bg-slate-950/45 p-4 transition hover:border-amber-300/30">
+                <p className="text-sm font-semibold text-white">{question.branch}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-slate-400">{question.message}</p>
+              </Link>
+            )) : (
+              <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/40 p-4 text-sm text-slate-400">No open responses needed.</div>
+            )}
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-6 xl:grid-cols-[1.35fr_0.95fr]">
         <ActivityFeed items={recentActivity} />
-        <TaskList tasks={todayTasks} />
       </section>
     </div>
   );

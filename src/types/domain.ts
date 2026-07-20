@@ -85,6 +85,8 @@ export interface TaskItem {
   id: string;
   text: string;
   completed: boolean;
+  assigneeName?: string;
+  assigneeEmail?: string;
   createdAt?: string;
   completedAt?: string;
 }

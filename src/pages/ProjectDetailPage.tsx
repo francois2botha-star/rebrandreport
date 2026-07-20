@@ -5,7 +5,8 @@ import { Mic2, Pause, Play, Send } from 'lucide-react';
 import { FileGrid } from '../components/uploads/FileGrid';
 import { Timeline } from '../components/timeline/Timeline';
 import { timelineStages } from '../constants/portal';
-import { addProjectComment, addProjectTask, answerProjectQuestion, askProjectQuestion, deleteProjectTask, getProjectById, getProjectFileUrl, markProjectQuestionRead, transcribeVoiceUpdateAudio, updateProjectTask, updateProjectWorkflow, uploadProjectFile, uploadVoiceUpdateAudio } from '../services/portalService';
+import { addProjectComment, addProjectTask, answerProjectQuestion, askProjectQuestion, deleteProjectTask, getProjectById, getProjectFileUrl, markProjectQuestionRead, renameProjectFile, transcribeVoiceUpdateAudio, updateProjectTask, updateProjectWorkflow, uploadProjectFile, uploadVoiceUpdateAudio } from '../services/portalService';
+import { getUsers } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 import { canViewProject, getAllowedStageOptions, getRolePolicy, getWorkflowDenialReason } from '../utils/permissions';
 import type { CommentItem, Project, ProjectFile, ProjectStatus, ProjectStage, TaskItem } from '../types/domain';
@@ -59,13 +60,23 @@ export function ProjectDetailPage() {
   const [answerTargetDate, setAnswerTargetDate] = useState('');
   const [answerInstallationDate, setAnswerInstallationDate] = useState('');
   const [taskText, setTaskText] = useState('');
+  const [taskAssigneeEmail, setTaskAssigneeEmail] = useState('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskText, setEditingTaskText] = useState('');
+  const [editingTaskAssigneeEmail, setEditingTaskAssigneeEmail] = useState('');
   const { data: project, isLoading } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => getProjectById(projectId ?? ''),
     enabled: Boolean(projectId),
   });
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+  });
+
+  function getAssignee(email: string) {
+    return users.find((item) => item.email.toLowerCase() === email.toLowerCase());
+  }
 
   useEffect(() => {
     if (project) {
@@ -203,28 +214,40 @@ export function ProjectDetailPage() {
   });
 
   const taskMutation = useMutation({
-    mutationFn: () => addProjectTask({
-      projectId: projectId ?? '',
-      task: taskText,
-      actor: user?.name ?? 'Workspace user',
-    }),
+    mutationFn: () => {
+      const assignee = getAssignee(taskAssigneeEmail);
+      return addProjectTask({
+        projectId: projectId ?? '',
+        task: taskText,
+        actor: user?.name ?? 'Workspace user',
+        assigneeName: assignee?.name,
+        assigneeEmail: assignee?.email,
+      });
+    },
     onSuccess: async (updatedProject) => {
       setTaskText('');
+      setTaskAssigneeEmail('');
       await syncProject(updatedProject);
     },
   });
 
   const updateTaskMutation = useMutation({
-    mutationFn: ({ task, text, completed }: { task: TaskItem; text?: string; completed?: boolean }) => updateProjectTask({
-      projectId: projectId ?? '',
-      taskId: task.id,
-      text,
-      completed,
-      actor: user?.name ?? 'Workspace user',
-    }),
+    mutationFn: ({ task, text, completed, assigneeEmail }: { task: TaskItem; text?: string; completed?: boolean; assigneeEmail?: string }) => {
+      const assignee = assigneeEmail !== undefined ? getAssignee(assigneeEmail) : undefined;
+      return updateProjectTask({
+        projectId: projectId ?? '',
+        taskId: task.id,
+        text,
+        completed,
+        assigneeName: assigneeEmail !== undefined ? assignee?.name : undefined,
+        assigneeEmail,
+        actor: user?.name ?? 'Workspace user',
+      });
+    },
     onSuccess: async (updatedProject) => {
       setEditingTaskId(null);
       setEditingTaskText('');
+      setEditingTaskAssigneeEmail('');
       await syncProject(updatedProject);
     },
   });
@@ -271,6 +294,16 @@ export function ProjectDetailPage() {
       }
     },
   });
+  const renameFileMutation = useMutation({
+    mutationFn: ({ file, nextName }: { file: ProjectFile; nextName: string }) => renameProjectFile({
+      projectId: projectId ?? '',
+      filePath: file.path,
+      currentName: file.name,
+      nextName,
+      actor: user?.name ?? 'Workspace user',
+    }),
+    onSuccess: syncProject,
+  });
 
   const previewMutation = useMutation({
     mutationFn: (file: ProjectFile) => getProjectFileUrl(file),
@@ -289,8 +322,8 @@ export function ProjectDetailPage() {
   const canAddComments = Boolean(rolePolicy?.communication.canCreateComments);
   const canAskColourpix = Boolean(rolePolicy?.communication.canAskQuestions);
   const canAnswerColourpixQuestions = canAdministerProjectDetails && Boolean(rolePolicy?.communication.canAnswerQuestions);
-  const canAddTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canCreateTasks);
-  const canCompleteTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canCompleteTasks);
+  const canAddTasks = Boolean(user);
+  const canCompleteTasks = Boolean(user);
   const canDeleteTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canDeleteTasks);
   const isVoiceRecording = voiceRecordingStatus === 'recording';
   const isVoiceRecordingPaused = voiceRecordingStatus === 'paused';
@@ -630,8 +663,12 @@ export function ProjectDetailPage() {
 
         <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-white">Tasks</h3>
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_14rem_auto]">
             <input value={taskText} disabled={!canAddTasks} onChange={(event) => setTaskText(event.target.value)} placeholder={canAddTasks ? 'Add next action...' : 'Task updates restricted'} className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60" />
+            <select value={taskAssigneeEmail} disabled={!canAddTasks} onChange={(event) => setTaskAssigneeEmail(event.target.value)} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60">
+              <option value="">Unassigned</option>
+              {users.map((item) => <option key={item.email} value={item.email}>{item.name}</option>)}
+            </select>
             <button type="button" disabled={!canAddTasks || taskMutation.isPending || !taskText.trim()} onClick={() => taskMutation.mutate()} className="rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
               Add
             </button>
@@ -642,20 +679,27 @@ export function ProjectDetailPage() {
                 {editingTaskId === task.id ? (
                   <div className="grid gap-3">
                     <input value={editingTaskText} onChange={(event) => setEditingTaskText(event.target.value)} className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-sky-400/50" />
+                    <select value={editingTaskAssigneeEmail} onChange={(event) => setEditingTaskAssigneeEmail(event.target.value)} className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-sky-400/50">
+                      <option value="">Unassigned</option>
+                      {users.map((item) => <option key={item.email} value={item.email}>{item.name}</option>)}
+                    </select>
                     <div className="flex flex-wrap gap-2">
-                      <button type="button" disabled={updateTaskMutation.isPending || !editingTaskText.trim()} onClick={() => updateTaskMutation.mutate({ task, text: editingTaskText })} className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">Save</button>
-                      <button type="button" onClick={() => { setEditingTaskId(null); setEditingTaskText(''); }} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10">Cancel</button>
+                      <button type="button" disabled={updateTaskMutation.isPending || !editingTaskText.trim()} onClick={() => updateTaskMutation.mutate({ task, text: editingTaskText, assigneeEmail: editingTaskAssigneeEmail })} className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">Save</button>
+                      <button type="button" onClick={() => { setEditingTaskId(null); setEditingTaskText(''); setEditingTaskAssigneeEmail(''); }} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10">Cancel</button>
                     </div>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <label className="flex min-w-0 flex-1 items-start gap-3">
                       <input type="checkbox" checked={task.completed} disabled={!canCompleteTasks || updateTaskMutation.isPending} onChange={(event) => updateTaskMutation.mutate({ task, completed: event.target.checked })} className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-900 accent-emerald-400 disabled:cursor-not-allowed disabled:opacity-50" />
-                      <span className={task.completed ? 'text-slate-500 line-through' : 'text-slate-200'}>{task.text}</span>
+                      <span className="min-w-0">
+                        <span className={task.completed ? 'block text-slate-500 line-through' : 'block text-slate-200'}>{task.text}</span>
+                        <span className="mt-1 block text-xs text-slate-500">{task.assigneeName ? `Assigned to ${task.assigneeName}` : 'Unassigned'}</span>
+                      </span>
                     </label>
                     {canAddTasks || canDeleteTasks ? (
                       <div className="flex shrink-0 gap-2">
-                        {canAddTasks ? <button type="button" onClick={() => { setEditingTaskId(task.id); setEditingTaskText(task.text); }} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10">Edit</button> : null}
+                        {canAddTasks ? <button type="button" onClick={() => { setEditingTaskId(task.id); setEditingTaskText(task.text); setEditingTaskAssigneeEmail(task.assigneeEmail ?? ''); }} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10">Edit</button> : null}
                         {canDeleteTasks ? <button type="button" disabled={deleteTaskMutation.isPending} onClick={() => deleteTaskMutation.mutate(task)} className="rounded-xl border border-red-400/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-200 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50">Delete</button> : null}
                       </div>
                     ) : null}
@@ -676,6 +720,7 @@ export function ProjectDetailPage() {
           onUpload={(file) => uploadMutation.mutate(file)}
           onPreview={(file: ProjectFile) => previewMutation.mutate(file)}
           onDownload={(file: ProjectFile) => downloadMutation.mutate(file)}
+          onRename={(file: ProjectFile, nextName) => renameFileMutation.mutate({ file, nextName })}
         />
         <div className="space-y-6">
           <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">

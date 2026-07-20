@@ -134,6 +134,8 @@ function normalizeProjectTasks(tasks: unknown[] | null): TaskItem[] {
           id: typeof candidate.id === 'string' ? candidate.id : `legacy-${index}-${taskSlug(candidateText)}`,
           text: candidateText,
           completed: Boolean(candidate.completed),
+          assigneeName: typeof candidate.assigneeName === 'string' ? candidate.assigneeName : undefined,
+          assigneeEmail: typeof candidate.assigneeEmail === 'string' ? candidate.assigneeEmail : undefined,
           createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : undefined,
           completedAt: typeof candidate.completedAt === 'string' ? candidate.completedAt : undefined,
         };
@@ -320,6 +322,8 @@ export type AddProjectTaskInput = {
   projectId: string;
   task: string;
   actor: string;
+  assigneeName?: string;
+  assigneeEmail?: string;
 };
 
 export type UpdateProjectTaskInput = {
@@ -327,6 +331,16 @@ export type UpdateProjectTaskInput = {
   taskId: string;
   text?: string;
   completed?: boolean;
+  assigneeName?: string;
+  assigneeEmail?: string;
+  actor: string;
+};
+
+export type RenameProjectFileInput = {
+  projectId: string;
+  filePath?: string;
+  currentName: string;
+  nextName: string;
   actor: string;
 };
 
@@ -912,8 +926,8 @@ export async function addProjectTask(input: AddProjectTaskInput): Promise<Projec
     throw new Error('Project not found.');
   }
 
-    const tasks: TaskItem[] = [{ id: createTaskId(), text: task, completed: false, createdAt: new Date().toISOString() }, ...existingProject.tasks];
-  const activity = [createActivity('Task added', `${input.actor} added task: ${task}`), ...existingProject.activity];
+  const tasks: TaskItem[] = [{ id: createTaskId(), text: task, completed: false, assigneeName: input.assigneeName, assigneeEmail: input.assigneeEmail, createdAt: new Date().toISOString() }, ...existingProject.tasks];
+  const activity = [createActivity('Task added', `${input.actor} added task: ${task}${input.assigneeName ? ` for ${input.assigneeName}` : ''}`), ...existingProject.activity];
 
   const { data, error } = await client
     .from('projects')
@@ -963,6 +977,8 @@ export async function updateProjectTask(input: UpdateProjectTaskInput): Promise<
       ...task,
       text: text ?? task.text,
       completed,
+      assigneeName: input.assigneeName !== undefined ? input.assigneeName || undefined : task.assigneeName,
+      assigneeEmail: input.assigneeEmail !== undefined ? input.assigneeEmail || undefined : task.assigneeEmail,
       completedAt: completed ? task.completedAt ?? new Date().toISOString() : undefined,
     };
   });
@@ -1021,6 +1037,45 @@ export async function deleteProjectTask(input: DeleteProjectTaskInput): Promise<
 
   if (error || !data) {
     throw error ?? new Error('Unable to delete project task.');
+  }
+
+  return mapProjectRow(data as ProjectRow);
+}
+
+export async function renameProjectFile(input: RenameProjectFileInput): Promise<Project> {
+  const client = supabase;
+
+  if (!client) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  const nextName = input.nextName.trim();
+  if (!nextName) {
+    throw new Error('File name cannot be empty.');
+  }
+
+  await hydrateAuthSession();
+
+  const existingProject = await getProjectById(input.projectId);
+  if (!existingProject) {
+    throw new Error('Project not found.');
+  }
+
+  const files = existingProject.files.map((file) => {
+    const matches = input.filePath ? file.path === input.filePath : file.name === input.currentName;
+    return matches ? { ...file, name: nextName } : file;
+  });
+  const activity = [createActivity('File renamed', `${input.actor} renamed ${input.currentName} to ${nextName}.`), ...existingProject.activity];
+
+  const { data, error } = await client
+    .from('projects')
+    .update({ files, activity, updated_at: new Date().toISOString() })
+    .eq('id', input.projectId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw error ?? new Error('Unable to rename project file.');
   }
 
   return mapProjectRow(data as ProjectRow);

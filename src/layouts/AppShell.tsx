@@ -22,6 +22,11 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
   const mobileNavigation = navigation.filter((item) => ['/', '/projects', '/voice-updates', '/support', '/profile', '/search'].includes(item.to));
   const profileIdentity = getProfileIdentity(user);
   const profileName = profileIdentity.displayName || user?.name || 'Signed out';
+  const quickLinks = [
+    { to: '/projects', label: 'Projects', icon: FileText },
+    { to: '/search', label: 'Search', icon: Search },
+    { to: '/map', label: 'Map', icon: FileText },
+  ];
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,rgba(2,6,23,0.88),rgba(15,23,42,0.98))] text-slate-100">
@@ -124,10 +129,19 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
 
         <main className="min-w-0 flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:py-6 xl:px-10">
           {statusBanner}
-          <Link to="/search" className="mb-5 inline-flex items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-500/12 px-4 py-3 text-sm font-semibold text-sky-100 shadow-soft transition hover:border-sky-300/40 hover:bg-sky-500/18">
-            <FileText className="h-4 w-4" />
-            Quick update
-          </Link>
+          <div className="mb-5 flex justify-center">
+            <div className="inline-flex rounded-2xl border border-white/10 bg-slate-950/55 p-1 shadow-soft">
+              {quickLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.to} to={item.to} className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-200 transition hover:bg-sky-500/15 hover:text-sky-100 sm:px-4">
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
           {children}
           <AppFooter />
         </main>

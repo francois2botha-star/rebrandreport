@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { FileText } from 'lucide-react';
 import type { ProjectFile } from '../../types/domain';
 
@@ -27,6 +28,7 @@ export function FileGrid({
   canUpload = true,
   onPreview,
   onDownload,
+  onRename,
   onUpload,
 }: {
   files: ProjectFile[];
@@ -35,8 +37,12 @@ export function FileGrid({
   canUpload?: boolean;
   onPreview?: (file: ProjectFile) => void;
   onDownload?: (file: ProjectFile) => void;
+  onRename?: (file: ProjectFile, nextName: string) => void;
   onUpload?: (file: File) => void;
 }) {
+  const [renamingFileKey, setRenamingFileKey] = useState<string | null>(null);
+  const [nextFileName, setNextFileName] = useState('');
+
   return (
     <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -79,7 +85,7 @@ export function FileGrid({
               </div>
             </div>
             {file.path ? (
-              <div className="mt-3 flex items-center gap-4">
+              <div className="mt-3 flex flex-wrap items-center gap-4">
                 {canPreviewFile(file) ? (
                   <button type="button" onClick={() => onPreview?.(file)} className="text-xs font-semibold text-sky-200 transition hover:text-sky-100">
                     Preview
@@ -88,10 +94,22 @@ export function FileGrid({
                 <button type="button" onClick={() => onDownload?.(file)} className="text-xs font-semibold text-sky-200 transition hover:text-sky-100">
                   Download
                 </button>
+                <button type="button" onClick={() => { setRenamingFileKey(file.path ?? file.name); setNextFileName(file.name); }} className="text-xs font-semibold text-sky-200 transition hover:text-sky-100">
+                  Rename
+                </button>
               </div>
             ) : (
               <p className="mt-3 text-xs text-slate-500">Legacy file name only</p>
             )}
+            {renamingFileKey === (file.path ?? file.name) ? (
+              <div className="mt-3 grid gap-2">
+                <input value={nextFileName} onChange={(event) => setNextFileName(event.target.value)} className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-xs text-white outline-none focus:border-sky-400/50" />
+                <div className="flex gap-2">
+                  <button type="button" disabled={!nextFileName.trim()} onClick={() => { onRename?.(file, nextFileName); setRenamingFileKey(null); }} className="rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">Save</button>
+                  <button type="button" onClick={() => setRenamingFileKey(null)} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10">Cancel</button>
+                </div>
+              </div>
+            ) : null}
           </div>
         )) : (
           <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/40 p-5 text-sm text-slate-400 sm:col-span-2">

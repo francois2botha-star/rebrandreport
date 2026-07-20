@@ -17,23 +17,24 @@ function isQuestionRequester(question: Project['comments'][number], user: UserRe
 export function ProjectCard({ project, user }: { project: Project; user?: UserRecord | null }) {
   const openQuestions = project.comments.filter((comment) => comment.kind === 'question' && comment.status !== 'answered').length;
   const unreadAnswers = project.comments.filter((comment) => comment.kind === 'question' && comment.status === 'answered' && comment.unreadForRequester && isQuestionRequester(comment, user)).length;
+  const outstandingTasks = project.tasks.filter((task) => !task.completed).length;
 
   return (
     <Link
       to={`/projects/${project.id}`}
-      className="block rounded-3xl border border-white/10 bg-slate-950/60 p-5 transition hover:-translate-y-0.5 hover:border-sky-400/30"
+      className="block rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:-translate-y-0.5 hover:border-sky-400/30"
     >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{project.id}</p>
-          <h3 className="mt-2 text-lg font-semibold text-white">{project.branch}</h3>
+        <div className="min-w-0">
+          <p className="truncate text-xs uppercase tracking-[0.18em] text-slate-500">{project.id}</p>
+          <h3 className="mt-2 truncate text-base font-semibold text-white">{project.branch}</h3>
           <p className="text-sm text-slate-400">
             {project.town}, {project.province}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-slate-200">{project.projectTypeName}</span>
-          <span className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${statusTone[project.status]}`}>{project.currentStage}</span>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusTone[project.status]}`}>{project.status.replace('_', ' ')}</span>
+          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-slate-200">{outstandingTasks} task{outstandingTasks === 1 ? '' : 's'}</span>
         </div>
       </div>
 
@@ -44,9 +45,9 @@ export function ProjectCard({ project, user }: { project: Project; user?: UserRe
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 text-sm text-slate-300">
-        <p>Manager: {project.manager}</p>
-        <p>{project.deliveryPartnerLabel}: {project.installer}</p>
+      <div className="mt-4 grid gap-1 text-sm text-slate-300">
+        <p className="truncate">Manager: {project.manager}</p>
+        <p className="truncate">{project.deliveryPartnerLabel}: {project.installer}</p>
         <p>Target: {project.targetDate}</p>
       </div>
 

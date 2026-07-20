@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { ActivityItem, CommentItem, Project, ProjectFile, ProjectTemplateId, Role, TaskItem, UserRecord } from '../types/domain';
-import { defaultWorkspace } from '../constants/workspaces';
+import { defaultWorkspace, platformOwnerEmail } from '../constants/workspaces';
 import { defaultProjectTemplate, getProjectTemplate } from '../constants/projectTemplates';
 
 export interface PortalSummary {
@@ -175,24 +175,72 @@ export type CreateProjectInput = {
   clientCompany?: string;
   graphicsPartner?: string;
   projectType?: ProjectTemplateId;
-  province: string;
-  town: string;
+  province?: string;
+  town?: string;
   branch: string;
-  manager: string;
-  managerEmail: string;
-  installer: string;
-  designer: string;
+  manager?: string;
+  managerEmail?: string;
+  installer?: string;
+  designer?: string;
   currentStage: Project['currentStage'];
   status: Project['status'];
-  targetDate: string;
-  installationDate: string;
-  completionDate: string;
+  targetDate?: string;
+  installationDate?: string;
+  completionDate?: string;
   progress: number;
-  notes: string;
+  notes?: string;
+};
+
+type ProjectChangeNotificationInput = {
+  project: Project;
+  actor: string;
+  message: string;
+  changeType: 'note' | 'voice_note' | 'voice_update';
 };
 
 function workspaceIdFromName(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || defaultWorkspace.id;
+}
+
+function optionalProjectValue(value: string | undefined, fallback = 'Not captured') {
+  return value?.trim() || fallback;
+}
+
+function isVoiceNoteMessage(message: string) {
+  return message.trim().toLowerCase().startsWith('voice note:');
+}
+
+async function notifyProjectChange(input: ProjectChangeNotificationInput) {
+  const client = supabase;
+
+  if (!client) {
+    return;
+  }
+
+  try {
+    const { error } = await client.functions.invoke('notify-project-change', {
+      body: {
+        to: platformOwnerEmail,
+        changeType: input.changeType,
+        actor: input.actor,
+        message: input.message,
+        project: {
+          id: input.project.id,
+          branch: input.project.branch,
+          town: input.project.town,
+          province: input.project.province,
+          currentStage: input.project.currentStage,
+          status: input.project.status,
+        },
+      },
+    });
+
+    if (error) {
+      console.warn('Project notification email could not be sent.', error.message);
+    }
+  } catch (error) {
+    console.warn('Project notification email could not be sent.', error);
+  }
 }
 
 export type UpdateProjectWorkflowInput = {
@@ -415,22 +463,22 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
   const graphicsPartner = input.graphicsPartner?.trim() || defaultWorkspace.graphicsPartner;
   const template = input.projectType ? getProjectTemplate(input.projectType) : defaultProjectTemplate;
   const basePayload = {
-    id: input.id,
-    province: input.province,
-    town: input.town,
-    branch: input.branch,
-    manager: input.manager,
-    manager_email: input.managerEmail,
-    installer: input.installer,
-    designer: input.designer,
+    id: input.id.trim(),
+    province: optionalProjectValue(input.province),
+    town: optionalProjectValue(input.town),
+    branch: input.branch.trim(),
+    manager: optionalProjectValue(input.manager),
+    manager_email: optionalProjectValue(input.managerEmail, ''),
+    installer: optionalProjectValue(input.installer),
+    designer: optionalProjectValue(input.designer),
     current_stage: input.currentStage,
     status: input.status,
-    target_date: input.targetDate,
-    installation_date: input.installationDate,
-    completion_date: input.completionDate,
+    target_date: input.targetDate?.trim() ?? '',
+    installation_date: input.installationDate?.trim() ?? '',
+    completion_date: input.completionDate?.trim() ?? '',
     progress: input.progress,
     branch_manager_view_only: false,
-    notes: input.notes,
+    notes: input.notes?.trim() ?? '',
     files: [],
     tasks: [],
     comments: [],
@@ -526,7 +574,7 @@ export async function uploadProjectFile(projectId: string, file: File, currentFi
   return nextFiles;
 }
 
-export async function getProjectFileUrl(file: ProjectFile) {
+export async function getProjectFileUrl(file: ProjectFile, options: { download?: boolean } = {}) {
   const client = supabase;
 
   if (!client || !file.path) {
@@ -537,7 +585,7 @@ export async function getProjectFileUrl(file: ProjectFile) {
 
   const { data, error } = await client.storage
     .from(projectFilesBucket)
-    .createSignedUrl(file.path, 60 * 60, { download: file.name });
+    .createSignedUrl(file.path, 60 * 60, options.download ? { download: file.name } : undefined);
 
   if (error) {
     throw error;
@@ -629,7 +677,16 @@ export async function addProjectComment(input: AddProjectCommentInput): Promise<
     throw error ?? new Error('Unable to add project comment.');
   }
 
-  return mapProjectRow(data as ProjectRow);
+  const updatedProject = mapProjectRow(data as ProjectRow);
+
+  await notifyProjectChange({
+    project: updatedProject,
+    actor: input.author,
+    message,
+    changeType: isVoiceNoteMessage(message) ? 'voice_note' : 'note',
+  });
+
+  return updatedProject;
 }
 
 export async function askProjectQuestion(input: AskProjectQuestionInput): Promise<Project> {
@@ -993,7 +1050,16 @@ export async function applyProjectVoiceUpdate(input: ApplyProjectVoiceUpdateInpu
     throw error ?? new Error('Unable to apply voice update.');
   }
 
-  return mapProjectRow(data as ProjectRow);
+  const updatedProject = mapProjectRow(data as ProjectRow);
+
+  await notifyProjectChange({
+    project: updatedProject,
+    actor: input.actor,
+    message: comment || changedFields.join(', ') || 'Voice update applied.',
+    changeType: 'voice_update',
+  });
+
+  return updatedProject;
 }
 
 export async function uploadVoiceUpdateAudio(file: File): Promise<UploadVoiceUpdateAudioResult> {

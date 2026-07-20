@@ -1,13 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
+import { Mic2, Pause, Play, Send } from 'lucide-react';
 import { FileGrid } from '../components/uploads/FileGrid';
 import { Timeline } from '../components/timeline/Timeline';
 import { timelineStages } from '../constants/portal';
-import { addProjectComment, addProjectTask, answerProjectQuestion, askProjectQuestion, deleteProjectTask, getProjectById, getProjectFileUrl, markProjectQuestionRead, updateProjectTask, updateProjectWorkflow, uploadProjectFile } from '../services/portalService';
+import { addProjectComment, addProjectTask, answerProjectQuestion, askProjectQuestion, deleteProjectTask, getProjectById, getProjectFileUrl, markProjectQuestionRead, transcribeVoiceUpdateAudio, updateProjectTask, updateProjectWorkflow, uploadProjectFile, uploadVoiceUpdateAudio } from '../services/portalService';
 import { useAuth } from '../contexts/AuthContext';
 import { canViewProject, getAllowedStageOptions, getRolePolicy, getWorkflowDenialReason } from '../utils/permissions';
 import type { CommentItem, Project, ProjectFile, ProjectStatus, ProjectStage, TaskItem } from '../types/domain';
+
+type RecordingStatus = 'idle' | 'recording' | 'paused';
+
+type SpeechRecognitionInstance = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+};
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
 const statusOptions: Array<{ value: ProjectStatus; label: string }> = [
   { value: 'in_progress', label: 'In progress' },
@@ -22,10 +38,17 @@ export function ProjectDetailPage() {
   const { projectId } = useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const voiceTranscriptRef = useRef('');
+  const voiceRecognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const voiceRecordingStatusRef = useRef<RecordingStatus>('idle');
   const [stage, setStage] = useState<ProjectStage>('New Project');
   const [status, setStatus] = useState<ProjectStatus>('in_progress');
   const [progress, setProgress] = useState(0);
   const [commentMessage, setCommentMessage] = useState('');
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceRecordingStatus, setVoiceRecordingStatusState] = useState<RecordingStatus>('idle');
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
+  const [voiceAudioFile, setVoiceAudioFile] = useState<File | null>(null);
   const [questionMessage, setQuestionMessage] = useState('');
   const [questionStage, setQuestionStage] = useState<'' | ProjectStage>('');
   const [answeringQuestionId, setAnsweringQuestionId] = useState<string | null>(null);
@@ -49,8 +72,27 @@ export function ProjectDetailPage() {
       setStage(project.currentStage);
       setStatus(project.status);
       setProgress(project.progress);
+
+      if (globalThis.location.hash === '#voice-note') {
+        requestAnimationFrame(() => document.getElementById('voice-note')?.scrollIntoView({ block: 'start' }));
+      }
     }
   }, [project]);
+
+  useEffect(() => () => {
+    voiceRecognitionRef.current?.stop();
+  }, []);
+
+  function setVoiceRecordingStatus(nextStatus: RecordingStatus) {
+    voiceRecordingStatusRef.current = nextStatus;
+    setVoiceRecordingStatusState(nextStatus);
+  }
+
+  function updateVoiceTranscript(nextTranscript: string) {
+    voiceTranscriptRef.current = nextTranscript;
+    setVoiceTranscript(nextTranscript);
+    setVoiceNotice(null);
+  }
 
   const syncProject = async (updatedProject: Project) => {
     queryClient.setQueryData(['project', projectId], updatedProject);
@@ -80,6 +122,41 @@ export function ProjectDetailPage() {
     onSuccess: async (updatedProject) => {
       setCommentMessage('');
       await syncProject(updatedProject);
+    },
+  });
+
+  const voiceCommentMutation = useMutation({
+    mutationFn: () => addProjectComment({
+      projectId: projectId ?? '',
+      author: user?.name ?? 'Workspace user',
+      message: `Voice note: ${voiceTranscriptRef.current.trim()}`,
+    }),
+    onSuccess: async (updatedProject) => {
+      updateVoiceTranscript('');
+      setVoiceAudioFile(null);
+      setVoiceRecordingStatus('idle');
+      setVoiceNotice('Voice note saved to this project.');
+      await syncProject(updatedProject);
+    },
+    onError: (error) => {
+      setVoiceNotice(error instanceof Error ? error.message : 'Unable to save the voice note.');
+    },
+  });
+
+  const projectVoiceTranscribeMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const upload = await uploadVoiceUpdateAudio(file);
+      return transcribeVoiceUpdateAudio(upload.path);
+    },
+    onMutate: () => {
+      setVoiceNotice('Transcribing voice note. Keep this project open until the transcript appears.');
+    },
+    onSuccess: (nextTranscript) => {
+      updateVoiceTranscript(nextTranscript);
+      setVoiceNotice('Voice note transcribed. Review the text, then save it to this project.');
+    },
+    onError: (error) => {
+      setVoiceNotice(error instanceof Error ? error.message : 'Voice note transcription failed.');
     },
   });
 
@@ -177,40 +254,104 @@ export function ProjectDetailPage() {
 
   const downloadMutation = useMutation({
     mutationFn: async (file: ProjectFile) => {
-      const url = await getProjectFileUrl(file);
+      const url = await getProjectFileUrl(file, { download: true });
       if (!url) {
         return null;
       }
 
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('Unable to download file.');
-      }
-
-      return { blob: await response.blob(), name: file.name };
+      return { url, name: file.name };
     },
     onSuccess: (download) => {
       if (download) {
-        const url = URL.createObjectURL(download.blob);
         const link = document.createElement('a');
-        link.href = url;
+        link.href = download.url;
         link.download = download.name;
+        link.rel = 'noreferrer';
         link.click();
-        URL.revokeObjectURL(url);
       }
     },
   });
 
-  const fileError = uploadMutation.error ?? downloadMutation.error;
+  const previewMutation = useMutation({
+    mutationFn: (file: ProjectFile) => getProjectFileUrl(file),
+    onSuccess: (url) => {
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    },
+  });
+
+  const fileError = uploadMutation.error ?? previewMutation.error ?? downloadMutation.error;
   const workflowError = workflowMutation.error ?? commentMutation.error ?? questionMutation.error ?? answerQuestionMutation.error ?? readQuestionMutation.error ?? taskMutation.error ?? updateTaskMutation.error ?? deleteTaskMutation.error;
   const rolePolicy = getRolePolicy(user);
-  const canUploadFiles = Boolean(rolePolicy?.files.canUploadFiles);
+  const canAdministerProjectDetails = Boolean(user?.isPlatformOwner);
+  const canUploadFiles = canAdministerProjectDetails && Boolean(rolePolicy?.files.canUploadFiles);
   const canAddComments = Boolean(rolePolicy?.communication.canCreateComments);
   const canAskColourpix = Boolean(rolePolicy?.communication.canAskQuestions);
-  const canAnswerColourpixQuestions = Boolean(rolePolicy?.communication.canAnswerQuestions);
-  const canAddTasks = Boolean(rolePolicy?.tasks.canCreateTasks);
-  const canCompleteTasks = Boolean(rolePolicy?.tasks.canCompleteTasks);
-  const canDeleteTasks = Boolean(rolePolicy?.tasks.canDeleteTasks);
+  const canAnswerColourpixQuestions = canAdministerProjectDetails && Boolean(rolePolicy?.communication.canAnswerQuestions);
+  const canAddTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canCreateTasks);
+  const canCompleteTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canCompleteTasks);
+  const canDeleteTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canDeleteTasks);
+  const isVoiceRecording = voiceRecordingStatus === 'recording';
+  const isVoiceRecordingPaused = voiceRecordingStatus === 'paused';
+  const hasVoiceTranscript = Boolean(voiceTranscript.trim());
+
+  function startProjectVoiceNote() {
+    if (voiceRecordingStatusRef.current === 'recording') {
+      return;
+    }
+
+    const Recognition = ((globalThis as typeof globalThis & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition
+      ?? (globalThis as typeof globalThis & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition);
+
+    if (typeof Recognition !== 'function') {
+      setVoiceNotice('Voice dictation is not available in this browser. Upload an audio file or type the update instead.');
+      return;
+    }
+
+    const recognition = new Recognition();
+    voiceRecognitionRef.current = recognition;
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = 'en-ZA';
+    recognition.onresult = (event) => {
+      const text = Array.from(event.results).map((result) => result[0].transcript).join(' ');
+      const currentTranscript = voiceTranscriptRef.current.trim();
+      updateVoiceTranscript(`${currentTranscript}${currentTranscript ? ' ' : ''}${text}`.trim());
+    };
+    recognition.onend = () => {
+      voiceRecognitionRef.current = null;
+      if (voiceRecordingStatusRef.current === 'recording') {
+        setVoiceRecordingStatus('paused');
+      }
+    };
+    recognition.onerror = () => {
+      voiceRecognitionRef.current = null;
+      setVoiceRecordingStatus('paused');
+      setVoiceNotice('Recording paused after a browser dictation error. Continue recording or save the transcript already captured.');
+    };
+    recognition.start();
+    setVoiceRecordingStatus('recording');
+    setVoiceNotice(isVoiceRecordingPaused ? 'Recording resumed for this project.' : 'Recording started for this project.');
+  }
+
+  function pauseProjectVoiceNote() {
+    if (voiceRecordingStatusRef.current !== 'recording') {
+      return;
+    }
+
+    setVoiceRecordingStatus('paused');
+    voiceRecognitionRef.current?.stop();
+    setVoiceNotice('Recording paused. Continue recording or save this note to the project.');
+  }
+
+  function saveProjectVoiceNote() {
+    if (voiceRecognitionRef.current) {
+      voiceRecognitionRef.current.stop();
+    }
+    setVoiceRecordingStatus('idle');
+    voiceCommentMutation.mutate();
+  }
 
   function startAnswer(question: CommentItem) {
     setAnsweringQuestionId(question.id ?? null);
@@ -243,7 +384,7 @@ export function ProjectDetailPage() {
   const hasAllowedStageChange = allowedStageOptions.some((item) => item !== selectedProject.currentStage);
   const workflowDenialReason = getWorkflowDenialReason(user, selectedProject, { currentStage: stage, status, progress });
   const hasWorkflowChange = stage !== selectedProject.currentStage || status !== selectedProject.status || progress !== selectedProject.progress;
-  const canSubmitWorkflow = hasWorkflowChange && !workflowDenialReason;
+  const canSubmitWorkflow = canAdministerProjectDetails && hasWorkflowChange && !workflowDenialReason;
 
   return (
     <div className="space-y-6">
@@ -263,6 +404,65 @@ export function ProjectDetailPage() {
           <div>Installation Date: <span className="text-white">{selectedProject.installationDate}</span></div>
           <div>Completion Date: <span className="text-white">{selectedProject.completionDate}</span></div>
         </div>
+      </section>
+
+      <section id="voice-note" className="rounded-3xl border border-sky-400/20 bg-sky-500/10 p-6 shadow-soft scroll-mt-24">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.24em] text-sky-200">Send Francois an update</p>
+            <h3 className="mt-2 text-lg font-semibold text-white">Leave a text or voice note for this project</h3>
+            <p className="mt-1 text-sm leading-6 text-slate-300">These notes do not change the project details directly. They are saved to the project journal and sent to Francois for review.</p>
+          </div>
+          <Link to="/search" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10">Find another project</Link>
+        </div>
+
+        <div id="project-note" className="mt-5 grid gap-3 scroll-mt-24">
+          <label className="grid gap-2 text-sm text-slate-300">
+            Text update
+            <textarea value={commentMessage} disabled={!canAddComments} onChange={(event) => setCommentMessage(event.target.value)} rows={3} placeholder={canAddComments ? 'Type what changed, what is needed, or what Francois should check...' : 'Commenting restricted'} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base leading-7 text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6" />
+          </label>
+          <button type="button" disabled={!canAddComments || commentMutation.isPending || !commentMessage.trim()} onClick={() => commentMutation.mutate()} className="w-fit rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">
+            {commentMutation.isPending ? 'Sending update...' : 'Send text update'}
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <button type="button" disabled={!canAddComments || isVoiceRecording} onClick={startProjectVoiceNote} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">
+            {isVoiceRecordingPaused ? <Play className="h-4 w-4" /> : <Mic2 className="h-4 w-4" />}
+            {isVoiceRecording ? 'Listening...' : isVoiceRecordingPaused ? 'Continue recording' : 'Start recording'}
+          </button>
+          <button type="button" disabled={!isVoiceRecording} onClick={pauseProjectVoiceNote} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-50">
+            <Pause className="h-4 w-4" />
+            Pause
+          </button>
+          <button type="button" disabled={!canAddComments || !hasVoiceTranscript || voiceCommentMutation.isPending} onClick={saveProjectVoiceNote} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50">
+            <Send className="h-4 w-4" />
+            {voiceCommentMutation.isPending ? 'Saving...' : 'Save note'}
+          </button>
+          <label className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10">
+            <Mic2 className="h-4 w-4" />
+            Upload audio
+            <input type="file" accept="audio/aac,audio/m4a,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,video/mp4,.aac,.m4a,.mp3,.ogg,.wav,.webm,.mp4" className="sr-only" disabled={!canAddComments || projectVoiceTranscribeMutation.isPending} onChange={(event) => {
+              const file = event.target.files?.[0] ?? null;
+              setVoiceAudioFile(file);
+              if (file) {
+                projectVoiceTranscribeMutation.mutate(file);
+              }
+              event.target.value = '';
+            }} />
+          </label>
+        </div>
+
+        <label className="mt-4 grid gap-2 text-sm text-slate-300">
+          Voice note transcript
+          <textarea value={voiceTranscript} disabled={!canAddComments} onChange={(event) => updateVoiceTranscript(event.target.value)} rows={4} placeholder={canAddComments ? 'Record or type a quick project update...' : 'Voice updates restricted for your role'} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base leading-7 text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6" />
+        </label>
+        <div className="mt-3 flex flex-col gap-2 text-xs leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+          <span>{voiceAudioFile ? `${voiceAudioFile.name} selected` : 'Voice notes also go to Francois for review before project details are changed.'}</span>
+          {projectVoiceTranscribeMutation.isPending ? <span className="text-sky-100">Transcribing audio...</span> : null}
+        </div>
+        {!canAddComments ? <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Your role can view this project but cannot add project voice notes.</p> : null}
+        {voiceNotice ? <p className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">{voiceNotice}</p> : null}
       </section>
 
       <Timeline stages={timelineStages} activeStage={selectedProject.currentStage} />
@@ -394,27 +594,27 @@ export function ProjectDetailPage() {
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-white">Workflow Actions</h3>
-          <p className="mt-1 text-sm text-slate-400">Update the stage, status, and progress while keeping an activity trail.</p>
-          {!rolePolicy?.workflow.canChangeStage && !rolePolicy?.workflow.canChangeStatus && !rolePolicy?.workflow.canChangeProgress ? <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Your role can view this workflow but cannot update it.</p> : null}
+          <p className="mt-1 text-sm text-slate-400">Francois administers project detail changes. Other users should leave text or voice updates at the top of this page.</p>
+          {!canAdministerProjectDetails ? <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Direct project detail editing is restricted. Leave an update above for Francois to review.</p> : null}
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
               Stage
-              <select value={stage} disabled={!rolePolicy?.workflow.canChangeStage || !hasAllowedStageChange} onChange={(event) => setStage(event.target.value as ProjectStage)} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60">
+              <select value={stage} disabled={!canAdministerProjectDetails || !rolePolicy?.workflow.canChangeStage || !hasAllowedStageChange} onChange={(event) => setStage(event.target.value as ProjectStage)} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60">
                 {allowedStageOptions.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300">
               Status
-              <select value={status} disabled={!rolePolicy?.workflow.canChangeStatus} onChange={(event) => setStatus(event.target.value as ProjectStatus)} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60">
+              <select value={status} disabled={!canAdministerProjectDetails || !rolePolicy?.workflow.canChangeStatus} onChange={(event) => setStatus(event.target.value as ProjectStatus)} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60">
                 {statusOptions.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
               </select>
             </label>
 
             <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
               Progress
-              <input type="range" min="0" max="100" value={progress} disabled={!rolePolicy?.workflow.canChangeProgress} onChange={(event) => setProgress(Number(event.target.value))} className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-60" />
+              <input type="range" min="0" max="100" value={progress} disabled={!canAdministerProjectDetails || !rolePolicy?.workflow.canChangeProgress} onChange={(event) => setProgress(Number(event.target.value))} className="accent-sky-400 disabled:cursor-not-allowed disabled:opacity-60" />
             </label>
             <div className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-white">{progress}% complete</div>
           </div>
@@ -469,10 +669,11 @@ export function ProjectDetailPage() {
       <section className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
         <FileGrid
           files={selectedProject.files}
-          isUploading={uploadMutation.isPending || downloadMutation.isPending}
+          isUploading={uploadMutation.isPending || previewMutation.isPending || downloadMutation.isPending}
           uploadError={fileError instanceof Error ? fileError.message : null}
           canUpload={canUploadFiles}
           onUpload={(file) => uploadMutation.mutate(file)}
+          onPreview={(file: ProjectFile) => previewMutation.mutate(file)}
           onDownload={(file: ProjectFile) => downloadMutation.mutate(file)}
         />
         <div className="space-y-6">
@@ -495,14 +696,8 @@ export function ProjectDetailPage() {
             </div>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
-            <h3 className="text-lg font-semibold text-white">Text updates and interaction log</h3>
-            <p className="mt-1 text-sm text-slate-400">Add short project updates, decisions, blockers, or handover notes for everyone assigned to this project.</p>
-            <div className="mt-4 grid gap-3">
-              <textarea value={commentMessage} disabled={!canAddComments} onChange={(event) => setCommentMessage(event.target.value)} rows={3} placeholder={canAddComments ? 'Add a project update...' : 'Commenting restricted'} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60" />
-              <button type="button" disabled={!canAddComments || commentMutation.isPending || !commentMessage.trim()} onClick={() => commentMutation.mutate()} className="w-fit rounded-2xl bg-sky-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">
-                {commentMutation.isPending ? 'Adding comment...' : 'Add comment'}
-              </button>
-            </div>
+            <h3 className="text-lg font-semibold text-white">Text and voice update history</h3>
+            <p className="mt-1 text-sm text-slate-400">Updates left for Francois appear here after they are saved.</p>
             <div className="mt-4 space-y-4">
               {projectComments.map((comment) => (
                 <div key={`${comment.date}-${comment.author}-${comment.message}`} className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">

@@ -13,11 +13,19 @@ function formatFileSize(size?: number) {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 }
 
+function canPreviewFile(file: ProjectFile) {
+  const fileType = file.type ?? '';
+  const fileName = file.name.toLowerCase();
+
+  return fileType.startsWith('image/') || fileType === 'application/pdf' || fileName.endsWith('.pdf');
+}
+
 export function FileGrid({
   files,
   isUploading,
   uploadError,
   canUpload = true,
+  onPreview,
   onDownload,
   onUpload,
 }: {
@@ -25,6 +33,7 @@ export function FileGrid({
   isUploading?: boolean;
   uploadError?: string | null;
   canUpload?: boolean;
+  onPreview?: (file: ProjectFile) => void;
   onDownload?: (file: ProjectFile) => void;
   onUpload?: (file: File) => void;
 }) {
@@ -70,9 +79,16 @@ export function FileGrid({
               </div>
             </div>
             {file.path ? (
-              <button type="button" onClick={() => onDownload?.(file)} className="mt-3 text-xs font-semibold text-sky-200 transition hover:text-sky-100">
-                Download
-              </button>
+              <div className="mt-3 flex items-center gap-4">
+                {canPreviewFile(file) ? (
+                  <button type="button" onClick={() => onPreview?.(file)} className="text-xs font-semibold text-sky-200 transition hover:text-sky-100">
+                    Preview
+                  </button>
+                ) : null}
+                <button type="button" onClick={() => onDownload?.(file)} className="text-xs font-semibold text-sky-200 transition hover:text-sky-100">
+                  Download
+                </button>
+              </div>
             ) : (
               <p className="mt-3 text-xs text-slate-500">Legacy file name only</p>
             )}

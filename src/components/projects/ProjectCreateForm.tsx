@@ -8,26 +8,29 @@ import { timelineStages } from '../../constants/portal';
 import { defaultGraphicsPartner, defaultWorkspace } from '../../constants/workspaces';
 import { defaultProjectTemplate, projectTemplateOptions } from '../../constants/projectTemplates';
 
+const optionalText = z.string().optional().default('');
+const optionalEmail = z.string().trim().refine((value) => !value || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), 'Enter a valid manager email');
+
 const projectSchema = z.object({
-  id: z.string().min(3, 'Project ID is required'),
+  id: z.string().trim().min(3, 'Project ID is required'),
   projectType: z.enum(['signage_rollout', 'general_rollout', 'service_delivery']),
-  workspaceName: z.string().min(2, 'Workspace is required'),
-  clientCompany: z.string().min(2, 'Client company is required'),
-  graphicsPartner: z.string().min(2, 'Service partner is required'),
-  province: z.string().min(2, 'Province is required'),
-  town: z.string().min(2, 'Town is required'),
-  branch: z.string().min(2, 'Site or project location is required'),
-  manager: z.string().min(2, 'Manager is required'),
-  managerEmail: z.string().email('Enter a valid manager email'),
-  installer: z.string().min(2, 'Delivery partner is required'),
-  designer: z.string().min(2, 'Designer is required'),
+  workspaceName: optionalText,
+  clientCompany: optionalText,
+  graphicsPartner: optionalText,
+  province: optionalText,
+  town: optionalText,
+  branch: z.string().trim().min(2, 'Site or project location is required'),
+  manager: optionalText,
+  managerEmail: optionalEmail,
+  installer: optionalText,
+  designer: optionalText,
   currentStage: z.string().min(1, 'Stage is required'),
   status: z.enum(['completed', 'in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled']),
-  targetDate: z.string().min(1, 'Target date is required'),
-  installationDate: z.string().min(1, 'Installation date is required'),
-  completionDate: z.string().min(1, 'Completion date is required'),
+  targetDate: optionalText,
+  installationDate: optionalText,
+  completionDate: optionalText,
   progress: z.coerce.number().min(0).max(100),
-  notes: z.string().min(1, 'Notes are required'),
+  notes: optionalText,
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -106,7 +109,7 @@ export function ProjectCreateForm() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold text-white">Add project</h3>
-          <p className="mt-1 text-sm text-slate-400">Add an approved project to the selected workspace database.</p>
+          <p className="mt-1 text-sm text-slate-400">Add a project with only the details you have now. Dates and operational contacts can be filled in later.</p>
         </div>
         <p className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">Database write path</p>
       </div>
@@ -129,19 +132,19 @@ export function ProjectCreateForm() {
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Workspace
+          Workspace <span className="text-xs text-slate-500">Optional</span>
           <input {...register('workspaceName')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.workspaceName ? <span className="text-xs text-red-300">{errors.workspaceName.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Client company
+          Client company <span className="text-xs text-slate-500">Optional</span>
           <input {...register('clientCompany')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.clientCompany ? <span className="text-xs text-red-300">{errors.clientCompany.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Service partner
+          Service partner <span className="text-xs text-slate-500">Optional</span>
           <input {...register('graphicsPartner')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.graphicsPartner ? <span className="text-xs text-red-300">{errors.graphicsPartner.message}</span> : null}
         </label>
@@ -153,37 +156,37 @@ export function ProjectCreateForm() {
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Province
+          Province <span className="text-xs text-slate-500">Optional</span>
           <input {...register('province')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.province ? <span className="text-xs text-red-300">{errors.province.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Town
+          Town <span className="text-xs text-slate-500">Optional</span>
           <input {...register('town')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.town ? <span className="text-xs text-red-300">{errors.town.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Manager
+          Manager <span className="text-xs text-slate-500">Optional</span>
           <input {...register('manager')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.manager ? <span className="text-xs text-red-300">{errors.manager.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Manager email
+          Manager email <span className="text-xs text-slate-500">Optional</span>
           <input type="email" {...register('managerEmail')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.managerEmail ? <span className="text-xs text-red-300">{errors.managerEmail.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Delivery partner
+          Delivery partner <span className="text-xs text-slate-500">Optional</span>
           <input {...register('installer')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.installer ? <span className="text-xs text-red-300">{errors.installer.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Designer
+          Designer <span className="text-xs text-slate-500">Optional</span>
           <input {...register('designer')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.designer ? <span className="text-xs text-red-300">{errors.designer.message}</span> : null}
         </label>
@@ -212,19 +215,19 @@ export function ProjectCreateForm() {
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Target date
+          Target date <span className="text-xs text-slate-500">Optional</span>
           <input {...register('targetDate')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" placeholder="15 August" />
           {errors.targetDate ? <span className="text-xs text-red-300">{errors.targetDate.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Installation date
+          Installation date <span className="text-xs text-slate-500">Optional</span>
           <input {...register('installationDate')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" placeholder="22 August" />
           {errors.installationDate ? <span className="text-xs text-red-300">{errors.installationDate.message}</span> : null}
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300">
-          Completion date
+          Completion date <span className="text-xs text-slate-500">Optional</span>
           <input {...register('completionDate')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" placeholder="25 August" />
           {errors.completionDate ? <span className="text-xs text-red-300">{errors.completionDate.message}</span> : null}
         </label>
@@ -236,7 +239,7 @@ export function ProjectCreateForm() {
         </label>
 
         <label className="grid gap-2 text-sm text-slate-300 md:col-span-2">
-          Notes
+          Notes <span className="text-xs text-slate-500">Optional</span>
           <textarea {...register('notes')} rows={4} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none" />
           {errors.notes ? <span className="text-xs text-red-300">{errors.notes.message}</span> : null}
         </label>

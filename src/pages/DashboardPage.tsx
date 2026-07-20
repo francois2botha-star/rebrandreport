@@ -42,12 +42,12 @@ export function DashboardPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <Link to="/voice-updates" className="group rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5 shadow-soft transition hover:border-sky-200/40 hover:bg-sky-500/15">
+        <Link to={user?.isPlatformOwner ? '/voice-updates' : '/search'} className="group rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5 shadow-soft transition hover:border-sky-200/40 hover:bg-sky-500/15">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400 text-slate-950"><Mic2 className="h-5 w-5" /></span>
             <div>
               <p className="text-sm font-semibold text-white">Voice updates</p>
-              <p className="text-xs text-slate-400">Speak once, review, then apply project changes.</p>
+              <p className="text-xs text-slate-400">{user?.isPlatformOwner ? 'Speak once, review, then apply project changes.' : 'Open a project and leave Francois a voice note.'}</p>
             </div>
           </div>
         </Link>

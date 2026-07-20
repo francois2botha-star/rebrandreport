@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.transcribe-voice-update]
 verify_jwt = false
+
+[functions.notify-project-change]
+verify_jwt = false

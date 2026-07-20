@@ -164,8 +164,8 @@ export function MapPage() {
                     <p className="mt-2 text-xs"><strong>Stage:</strong> {project.currentStage}</p>
                     <p className="text-xs"><strong>Status:</strong> {statusStyles[project.status].label}</p>
                     <p className="text-xs"><strong>Installer:</strong> {project.installer}</p>
-                    <Link className="mt-3 inline-flex text-xs font-semibold text-sky-700" to={`/projects/${project.id}`}>
-                      Open project
+                    <Link className="mt-3 inline-flex text-xs font-semibold text-sky-700" to={`/projects/${project.id}#voice-note`}>
+                      Open voice note
                     </Link>
                   </div>
                 </Popup>
@@ -194,7 +194,7 @@ export function MapPage() {
             {locations.map(({ project, color }) => (
               <Link
                 key={project.id}
-                to={`/projects/${project.id}`}
+                to={`/projects/${project.id}#voice-note`}
                 className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:border-sky-400/40 hover:bg-white/10"
               >
                 <div className="flex items-start gap-3">

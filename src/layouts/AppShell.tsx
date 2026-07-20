@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { LogOut, Shield } from 'lucide-react';
+import { FileText, LogOut, Shield } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../lib/utils';
 import { productBrand } from '../constants/branding';
@@ -132,6 +132,10 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
 
         <main className="min-w-0 flex-1 px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:py-6 xl:px-10">
           {statusBanner}
+          <Link to="/search" className="mb-5 inline-flex items-center gap-2 rounded-2xl border border-sky-400/20 bg-sky-500/12 px-4 py-3 text-sm font-semibold text-sky-100 shadow-soft transition hover:border-sky-300/40 hover:bg-sky-500/18">
+            <FileText className="h-4 w-4" />
+            Quick update
+          </Link>
           {children}
           <AppFooter />
         </main>

@@ -172,7 +172,7 @@ export function canAccessRoute(user: UserRecord | null | undefined, path: string
   }
 
   if (path.startsWith('/voice-updates')) {
-    return can(user, 'batch_voice_updates');
+    return Boolean(user.isPlatformOwner && can(user, 'batch_voice_updates'));
   }
 
   if (path.startsWith('/settings')) {

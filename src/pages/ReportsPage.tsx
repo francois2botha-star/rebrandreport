@@ -245,6 +245,7 @@ export function ReportsPage() {
       && matchesSearch;
   }), [dateField, fromDate, installer, normalizedQuery, scopedProjects, province, reportType, stage, status, toDate]);
   const canExportReports = can(user, 'export_reports');
+  const exportProjects = filteredProjects.length > 0 ? filteredProjects : scopedProjects;
 
   const reportName = `${selectedReport.label} report`;
   const delayedCount = filteredProjects.filter((project) => project.status === 'delayed' || project.status === 'on_hold').length;
@@ -382,13 +383,13 @@ export function ReportsPage() {
         </div>
 
         <div className="mt-5 flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm leading-6 text-slate-400">{selectedReport.description}</p>
+          <p className="text-sm leading-6 text-slate-400">{selectedReport.description} If filters return no rows, the export falls back to all projects visible to your role.</p>
           <div className="flex flex-wrap gap-3">
-            <button type="button" disabled={!canExportReports || !filteredProjects.length} onClick={() => downloadExcel(filteredProjects, reportName)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={!canExportReports} onClick={() => downloadExcel(exportProjects, reportName)} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
               <FileText className="h-4 w-4" />
               Excel report
             </button>
-            <button type="button" disabled={!canExportReports || !filteredProjects.length} onClick={() => openPdfReport(filteredProjects, reportName)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={!canExportReports} onClick={() => openPdfReport(exportProjects, reportName)} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50">
               <FileText className="h-4 w-4" />
               PDF report
             </button>

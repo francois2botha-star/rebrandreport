@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import type { Role, UserRecord } from '../types/domain';
 import { roleLabels } from '../constants/portal';
 import { enrichWorkspaceAccess } from '../constants/workspaces';
+import { sanitizePermissionOverrides } from '../utils/permissions';
 
 const validRoles: Role[] = ['colourpix_admin', 'psg_head_office', 'psg_branch_manager', 'sign_company'];
 
@@ -16,6 +17,7 @@ type ProfileRow = {
   avatar_url?: string | null;
   logo_url?: string | null;
   workspace_ids?: string[] | null;
+  permission_overrides?: Record<string, unknown> | null;
 };
 
 function isRole(value: unknown): value is Role {
@@ -53,14 +55,14 @@ export async function sessionToUser(session: Session | null): Promise<UserRecord
 
   const profileResult = await supabase
     .from('profiles')
-    .select('name, role, branch, email, company, profile_title, avatar_url, logo_url, workspace_ids')
+    .select('name, role, branch, email, company, profile_title, avatar_url, logo_url, workspace_ids, permission_overrides')
     .eq('email', email)
     .maybeSingle();
 
   let data: Partial<ProfileRow> | null = profileResult.data as Partial<ProfileRow> | null;
   let error = profileResult.error;
 
-  if (['company', 'profile_title', 'avatar_url', 'logo_url', 'workspace_ids'].some((column) => error?.message.toLowerCase().includes(column))) {
+  if (['company', 'profile_title', 'avatar_url', 'logo_url', 'workspace_ids', 'permission_overrides'].some((column) => error?.message.toLowerCase().includes(column))) {
     const fallbackResult = await supabase
       .from('profiles')
       .select('name, role, branch, email')
@@ -87,6 +89,7 @@ export async function sessionToUser(session: Session | null): Promise<UserRecord
     logoUrl: profile.logo_url ?? undefined,
     workspaceIds: Array.isArray(profile.workspace_ids) ? profile.workspace_ids : undefined,
     email: profile.email,
+    permissionOverrides: sanitizePermissionOverrides(profile.permission_overrides),
   });
 }
 

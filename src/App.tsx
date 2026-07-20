@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { LayoutDashboard, KanbanSquare, FileText, Shield, Search, Users, MapPinned, Mic2, ShieldCheck, LifeBuoy, UserCircle } from 'lucide-react';
+import { LayoutDashboard, KanbanSquare, FileText, Shield, Search, Users, MapPinned, ShieldCheck, LifeBuoy, UserCircle } from 'lucide-react';
 import { AppShell } from './layouts/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -16,11 +16,11 @@ const ReportsPage = lazy(() => import('./pages/ReportsPage').then((module) => ({
 const SearchPage = lazy(() => import('./pages/SearchPage').then((module) => ({ default: module.SearchPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage })));
 const UsersPage = lazy(() => import('./pages/UsersPage').then((module) => ({ default: module.UsersPage })));
-const VoiceUpdatesPage = lazy(() => import('./pages/VoiceUpdatesPage').then((module) => ({ default: module.VoiceUpdatesPage })));
 const SupportPage = lazy(() => import('./pages/SupportPage').then((module) => ({ default: module.SupportPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((module) => ({ default: module.ProfilePage })));
 const AboutPage = lazy(() => import('./pages/AboutPage').then((module) => ({ default: module.AboutPage })));
 const LegalPage = lazy(() => import('./pages/LegalPage').then((module) => ({ default: module.LegalPage })));
+const AccessControlsPage = lazy(() => import('./pages/AccessControlsPage').then((module) => ({ default: module.AccessControlsPage })));
 
 const navigation = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,10 +28,10 @@ const navigation = [
   { to: '/search', label: 'Search', icon: Search },
   { to: '/reports', label: 'Reports', icon: FileText },
   { to: '/map', label: 'Map', icon: MapPinned },
-  { to: '/voice-updates', label: 'Voice Updates', icon: Mic2 },
   { to: '/support', label: 'Support', icon: LifeBuoy },
   { to: '/profile', label: 'Profile', icon: UserCircle },
   { to: '/users', label: 'Users', icon: Users },
+  { to: '/access-controls', label: 'Access Controls', icon: ShieldCheck },
   { to: '/settings', label: 'Settings', icon: Shield },
   { to: '/about', label: 'About', icon: ShieldCheck },
   { to: '/legal', label: 'Legal', icon: FileText },
@@ -42,10 +42,10 @@ const routeTitles: Record<string, string> = {
   '/projects': 'Projects',
   '/reports': 'Reports',
   '/users': 'Users',
+  '/access-controls': 'Access Controls',
   '/settings': 'Settings',
   '/search': 'Search',
   '/map': 'Map',
-  '/voice-updates': 'Voice Updates',
   '/support': 'Support',
   '/profile': 'Profile',
   '/about': 'About',
@@ -163,10 +163,10 @@ function AppRoutes() {
           <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/users" element={<UsersPage />} />
+          <Route path="/access-controls" element={<AccessControlsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/map" element={<MapPage />} />
-          <Route path="/voice-updates" element={<VoiceUpdatesPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/about" element={<AboutPage />} />

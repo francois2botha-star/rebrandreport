@@ -1,7 +1,8 @@
 import { supabase } from '../lib/supabase';
 import type { ActivityItem, CommentItem, Project, ProjectFile, ProjectTemplateId, Role, TaskItem, UserRecord } from '../types/domain';
-import { defaultWorkspace, platformOwnerEmail } from '../constants/workspaces';
+import { defaultWorkspace, rolloutAppEmail } from '../constants/workspaces';
 import { defaultProjectTemplate, getProjectTemplate } from '../constants/projectTemplates';
+import { timelineStages } from '../constants/portal';
 
 export interface PortalSummary {
   metrics: Array<{ label: string; value: number }>;
@@ -112,13 +113,17 @@ function taskSlug(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'task';
 }
 
+function isTimelineStage(value: unknown): value is Project['currentStage'] {
+  return typeof value === 'string' && timelineStages.includes(value as Project['currentStage']);
+}
+
 function normalizeProjectTasks(tasks: unknown[] | null): TaskItem[] {
   if (!Array.isArray(tasks)) {
     return [];
   }
 
   return tasks
-    .map((task, index) => {
+    .map((task, index): TaskItem | null => {
       if (typeof task === 'string') {
         return {
           id: `legacy-${index}-${taskSlug(task)}`,
@@ -134,6 +139,7 @@ function normalizeProjectTasks(tasks: unknown[] | null): TaskItem[] {
           id: typeof candidate.id === 'string' ? candidate.id : `legacy-${index}-${taskSlug(candidateText)}`,
           text: candidateText,
           completed: Boolean(candidate.completed),
+          stage: isTimelineStage(candidate.stage) ? candidate.stage : undefined,
           assigneeName: typeof candidate.assigneeName === 'string' ? candidate.assigneeName : undefined,
           assigneeEmail: typeof candidate.assigneeEmail === 'string' ? candidate.assigneeEmail : undefined,
           createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : undefined,
@@ -255,7 +261,7 @@ async function notifyProjectChange(input: ProjectChangeNotificationInput) {
   try {
     const { error } = await client.functions.invoke('notify-project-change', {
       body: {
-        to: platformOwnerEmail,
+        to: rolloutAppEmail,
         changeType: input.changeType,
         actor: input.actor,
         message: input.message,
@@ -322,6 +328,7 @@ export type AddProjectTaskInput = {
   projectId: string;
   task: string;
   actor: string;
+  stage?: Project['currentStage'];
   assigneeName?: string;
   assigneeEmail?: string;
 };
@@ -331,9 +338,19 @@ export type UpdateProjectTaskInput = {
   taskId: string;
   text?: string;
   completed?: boolean;
+  stage?: Project['currentStage'];
   assigneeName?: string;
   assigneeEmail?: string;
   actor: string;
+};
+
+export type UpsertProjectStageTaskInput = {
+  projectId: string;
+  stage: Project['currentStage'];
+  actor: string;
+  completed?: boolean;
+  assigneeName?: string;
+  assigneeEmail?: string;
 };
 
 export type RenameProjectFileInput = {
@@ -445,7 +462,7 @@ export async function getPortalSummary(): Promise<PortalSummary> {
 
   const totalProjects = data.length;
   const completed = data.filter((row) => row.status === 'completed').length;
-  const inProgress = data.filter((row) => ['in_progress', 'awaiting_approval'].includes(row.status)).length;
+  const inProgress = data.filter((row) => ['busy', 'in_progress', 'awaiting_approval'].includes(row.status)).length;
   const delayed = data.filter((row) => row.status === 'delayed').length;
   const recentActivity = data.flatMap((row) => row.activity ?? []).slice(0, 4);
   const todayTasks = [...new Set(data.flatMap((row) => normalizeProjectTasks(row.tasks ?? []).filter((task) => !task.completed).map((task) => task.text)))].slice(0, 3);
@@ -926,7 +943,7 @@ export async function addProjectTask(input: AddProjectTaskInput): Promise<Projec
     throw new Error('Project not found.');
   }
 
-  const tasks: TaskItem[] = [{ id: createTaskId(), text: task, completed: false, assigneeName: input.assigneeName, assigneeEmail: input.assigneeEmail, createdAt: new Date().toISOString() }, ...existingProject.tasks];
+  const tasks: TaskItem[] = [{ id: createTaskId(), text: task, completed: false, stage: input.stage, assigneeName: input.assigneeName, assigneeEmail: input.assigneeEmail, createdAt: new Date().toISOString() }, ...existingProject.tasks];
   const activity = [createActivity('Task added', `${input.actor} added task: ${task}${input.assigneeName ? ` for ${input.assigneeName}` : ''}`), ...existingProject.activity];
 
   const { data, error } = await client
@@ -977,6 +994,7 @@ export async function updateProjectTask(input: UpdateProjectTaskInput): Promise<
       ...task,
       text: text ?? task.text,
       completed,
+      stage: input.stage ?? task.stage,
       assigneeName: input.assigneeName !== undefined ? input.assigneeName || undefined : task.assigneeName,
       assigneeEmail: input.assigneeEmail !== undefined ? input.assigneeEmail || undefined : task.assigneeEmail,
       completedAt: completed ? task.completedAt ?? new Date().toISOString() : undefined,
@@ -1001,6 +1019,64 @@ export async function updateProjectTask(input: UpdateProjectTaskInput): Promise<
 
   if (error || !data) {
     throw error ?? new Error('Unable to update project task.');
+  }
+
+  return mapProjectRow(data as ProjectRow);
+}
+
+export async function upsertProjectStageTask(input: UpsertProjectStageTaskInput): Promise<Project> {
+  const client = supabase;
+
+  if (!client) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  await hydrateAuthSession();
+
+  const existingProject = await getProjectById(input.projectId);
+  if (!existingProject) {
+    throw new Error('Project not found.');
+  }
+
+  const now = new Date().toISOString();
+  const existingTask = existingProject.tasks.find((task) => task.stage === input.stage);
+  const completed = input.completed ?? existingTask?.completed ?? false;
+
+  const nextTask: TaskItem = {
+    id: existingTask?.id ?? createTaskId(),
+    text: existingTask?.text ?? input.stage,
+    completed,
+    stage: input.stage,
+    assigneeName: input.assigneeName !== undefined ? input.assigneeName || undefined : existingTask?.assigneeName,
+    assigneeEmail: input.assigneeEmail !== undefined ? input.assigneeEmail || undefined : existingTask?.assigneeEmail,
+    createdAt: existingTask?.createdAt ?? now,
+    completedAt: completed ? existingTask?.completedAt ?? now : undefined,
+  };
+
+  const tasks = existingTask
+    ? existingProject.tasks.map((task) => (task.id === existingTask.id ? nextTask : task))
+    : [nextTask, ...existingProject.tasks];
+
+  const activityTitle = input.completed === undefined
+    ? 'Timeline stage assigned'
+    : input.completed
+      ? 'Timeline stage completed'
+      : 'Timeline stage reopened';
+  const assignmentDetail = nextTask.assigneeName ? ` assigned to ${nextTask.assigneeName}` : '';
+  const activity = [
+    createActivity(activityTitle, `${input.actor} updated ${input.stage}${assignmentDetail}.`, input.completed ? 'success' : 'info'),
+    ...existingProject.activity,
+  ];
+
+  const { data, error } = await client
+    .from('projects')
+    .update({ tasks, activity, updated_at: now })
+    .eq('id', input.projectId)
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw error ?? new Error('Unable to update timeline stage.');
   }
 
   return mapProjectRow(data as ProjectRow);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FileText, Mic2, Search } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 import { ProjectCard } from '../components/projects/ProjectCard';
 import { getProjects } from '../services/portalService';
 import { ProjectCreateForm } from '../components/projects/ProjectCreateForm';
@@ -71,10 +71,6 @@ export function ProjectsPage() {
                 <Link to={`/projects/${project.id}#project-note`} className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-400">
                   <FileText className="h-4 w-4" />
                   Add note
-                </Link>
-                <Link to={`/projects/${project.id}#voice-note`} className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-white/10">
-                  <Mic2 className="h-4 w-4" />
-                  Voice note
                 </Link>
               </div>
             </article>

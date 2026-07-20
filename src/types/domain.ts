@@ -36,7 +36,7 @@ export type ProjectStage =
   | 'Delayed'
   | 'Cancelled';
 
-export type ProjectStatus = 'completed' | 'in_progress' | 'awaiting_approval' | 'delayed' | 'on_hold' | 'cancelled';
+export type ProjectStatus = 'completed' | 'busy' | 'in_progress' | 'awaiting_approval' | 'delayed' | 'on_hold' | 'cancelled';
 
 export interface Project {
   id: string;
@@ -85,6 +85,7 @@ export interface TaskItem {
   id: string;
   text: string;
   completed: boolean;
+  stage?: ProjectStage;
   assigneeName?: string;
   assigneeEmail?: string;
   createdAt?: string;
@@ -127,4 +128,5 @@ export interface UserRecord {
   workspaceIds?: string[];
   canAccessAllWorkspaces?: boolean;
   isPlatformOwner?: boolean;
+  permissionOverrides?: Record<string, boolean>;
 }

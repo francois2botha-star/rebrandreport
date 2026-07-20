@@ -13,7 +13,7 @@ create table if not exists public.projects (
   installer text not null,
   designer text not null,
   current_stage text not null,
-  status text not null check (status in ('completed', 'in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled')),
+  status text not null check (status in ('completed', 'busy', 'in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled')),
   target_date text not null,
   installation_date text not null,
   completion_date text not null,
@@ -47,6 +47,7 @@ create table if not exists public.profiles (
   name text not null,
   role text not null check (role in ('colourpix_admin', 'psg_head_office', 'psg_branch_manager', 'sign_company')),
   branch text,
+  permission_overrides jsonb not null default '{}'::jsonb,
   email text not null unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -54,6 +55,7 @@ create table if not exists public.profiles (
 
 alter table public.profiles add column if not exists user_id uuid unique references auth.users(id) on delete set null;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.profiles add column if not exists permission_overrides jsonb not null default '{}'::jsonb;
 
 do $$ begin
   alter table public.profiles add constraint profiles_role_check check (role in ('colourpix_admin', 'psg_head_office', 'psg_branch_manager', 'sign_company'));

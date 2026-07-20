@@ -41,7 +41,7 @@ export function AboutPage() {
         <p className="text-sm uppercase tracking-[0.32em] text-teal-200/80">About</p>
         <h2 className="mt-3 text-3xl font-semibold text-white">{productBrand.name}</h2>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-          {productBrand.description} for client workspaces, project templates, controlled users, supplier coordination, project journals, voice updates, files, and reporting.
+          {productBrand.description} for client workspaces, project templates, controlled users, supplier coordination, project journals, files, and reporting.
         </p>
       </section>
 

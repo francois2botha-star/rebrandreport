@@ -26,7 +26,7 @@ const projectSchema = z.object({
   installer: optionalText,
   designer: optionalText,
   currentStage: z.string().min(1, 'Stage is required'),
-  status: z.enum(['completed', 'in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled']),
+  status: z.enum(['completed', 'busy', 'in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled']),
   targetDate: optionalText,
   installationDate: optionalText,
   completionDate: optionalText,
@@ -214,6 +214,7 @@ export function ProjectCreateForm() {
         <label className="grid gap-2 text-sm text-slate-300">
           Status
           <select {...register('status')} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-white outline-none">
+            <option value="busy">Busy</option>
             <option value="in_progress">In progress</option>
             <option value="awaiting_approval">Awaiting approval</option>
             <option value="completed">Completed</option>

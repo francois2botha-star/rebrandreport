@@ -9,12 +9,14 @@ create table if not exists public.profiles (
   name text not null,
   role text not null,
   branch text,
+  permission_overrides jsonb not null default '{}'::jsonb,
   email text not null unique,
   created_at timestamptz not null default now()
 );
 
 alter table public.profiles add column if not exists user_id uuid unique references auth.users(id) on delete set null;
 alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+alter table public.profiles add column if not exists permission_overrides jsonb not null default '{}'::jsonb;
 
 update public.profiles profile
 set user_id = auth_user.id

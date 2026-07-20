@@ -13,6 +13,7 @@ create table if not exists public.profiles (
   avatar_url text,
   logo_url text,
   workspace_ids text[] not null default array['psg-national-signage-rollout'],
+  permission_overrides jsonb not null default '{}'::jsonb,
   email text not null unique,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -25,6 +26,7 @@ alter table public.profiles add column if not exists profile_title text;
 alter table public.profiles add column if not exists avatar_url text;
 alter table public.profiles add column if not exists logo_url text;
 alter table public.profiles add column if not exists workspace_ids text[] not null default array['psg-national-signage-rollout'];
+alter table public.profiles add column if not exists permission_overrides jsonb not null default '{}'::jsonb;
 
 do $$ begin
   alter table public.profiles add constraint profiles_role_check check (role in ('colourpix_admin', 'psg_head_office', 'psg_branch_manager', 'sign_company'));

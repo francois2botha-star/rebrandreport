@@ -1,23 +1,66 @@
-import type { ProjectStage } from '../../types/domain';
+import type { ProjectStage, TaskItem, UserRecord } from '../../types/domain';
 
-export function Timeline({ stages, activeStage }: { stages: readonly ProjectStage[]; activeStage: ProjectStage }) {
+type TimelineProps = {
+  stages: readonly ProjectStage[];
+  activeStage: ProjectStage;
+  tasks: TaskItem[];
+  users: UserRecord[];
+  canCompleteStages: boolean;
+  canAssignStages: boolean;
+  isUpdating: boolean;
+  onToggleStage: (stage: ProjectStage, completed: boolean) => void;
+  onAssignStage: (stage: ProjectStage, assigneeEmail: string) => void;
+};
+
+export function Timeline({ stages, activeStage, tasks, users, canCompleteStages, canAssignStages, isUpdating, onToggleStage, onAssignStage }: TimelineProps) {
+  const activeIndex = stages.indexOf(activeStage);
+
   return (
     <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
       <h3 className="text-lg font-semibold text-white">Timeline</h3>
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {stages.map((stage) => {
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        {stages.map((stage, index) => {
+          const stageTask = tasks.find((task) => task.stage === stage);
           const active = stage === activeStage;
-          const complete = stages.indexOf(stage) < stages.indexOf(activeStage);
+          const complete = Boolean(stageTask?.completed) || index < activeIndex;
+          const assigneeEmail = stageTask?.assigneeEmail ?? '';
+
           return (
-            <div
+            <article
               key={stage}
-              className={`rounded-2xl border px-4 py-3 text-sm ${
+              className={`rounded-2xl border p-4 text-sm ${
                 active ? 'border-sky-400/40 bg-sky-500/10 text-sky-100' : complete ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-slate-950/40 text-slate-300'
               }`}
             >
-              {complete ? '✓ ' : active ? '→ ' : '□ '}
-              {stage}
-            </div>
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={complete}
+                  disabled={!canCompleteStages || isUpdating}
+                  onChange={(event) => onToggleStage(stage, event.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-white/20 bg-slate-900 accent-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-medium text-white">{stage}</p>
+                    {active && !complete ? <span className="rounded-full border border-sky-400/25 bg-sky-500/15 px-2 py-0.5 text-[0.68rem] font-semibold text-sky-100">Busy</span> : null}
+                    {complete ? <span className="rounded-full border border-emerald-400/25 bg-emerald-500/15 px-2 py-0.5 text-[0.68rem] font-semibold text-emerald-100">Done</span> : null}
+                  </div>
+                  <label className="mt-3 grid gap-1 text-xs text-slate-400">
+                    Assigned to
+                    <select
+                      value={assigneeEmail}
+                      disabled={!canAssignStages || isUpdating}
+                      onChange={(event) => onAssignStage(stage, event.target.value)}
+                      className="rounded-xl border border-white/10 bg-slate-900/80 px-3 py-2 text-xs text-white outline-none focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="">Unassigned</option>
+                      {users.map((item) => <option key={item.email} value={item.email}>{item.name}</option>)}
+                    </select>
+                  </label>
+                </div>
+              </div>
+            </article>
           );
         })}
       </div>

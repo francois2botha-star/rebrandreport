@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FileText, LifeBuoy, Mic2 } from 'lucide-react';
+import { FileText, LifeBuoy, Search } from 'lucide-react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { ActivityFeed } from '../components/dashboard/ActivityFeed';
 import { getProjects } from '../services/portalService';
@@ -29,7 +29,7 @@ export function DashboardPage() {
   const metrics = [
     { label: 'Projects', value: scopedProjects.length },
     { label: 'Completed', value: scopedProjects.filter((project) => project.status === 'completed').length },
-    { label: 'In Progress', value: scopedProjects.filter((project) => ['in_progress', 'awaiting_approval'].includes(project.status)).length },
+    { label: 'Active', value: scopedProjects.filter((project) => ['busy', 'in_progress', 'awaiting_approval'].includes(project.status)).length },
     { label: 'Awaiting Approval', value: scopedProjects.filter((project) => project.status === 'awaiting_approval').length },
     { label: 'Delayed', value: scopedProjects.filter((project) => project.status === 'delayed').length },
   ];
@@ -42,12 +42,12 @@ export function DashboardPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <Link to={user?.isPlatformOwner ? '/voice-updates' : '/search'} className="group rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5 shadow-soft transition hover:border-sky-200/40 hover:bg-sky-500/15">
+        <Link to="/search" className="group rounded-3xl border border-sky-300/20 bg-sky-500/10 p-5 shadow-soft transition hover:border-sky-200/40 hover:bg-sky-500/15">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400 text-slate-950"><Mic2 className="h-5 w-5" /></span>
+            <span className="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400 text-slate-950"><Search className="h-5 w-5" /></span>
             <div>
-              <p className="text-sm font-semibold text-white">Voice updates</p>
-              <p className="text-xs text-slate-400">{user?.isPlatformOwner ? 'Batch project updates' : 'Leave a voice note'}</p>
+              <p className="text-sm font-semibold text-white">Find projects</p>
+              <p className="text-xs text-slate-400">Search and open details</p>
             </div>
           </div>
         </Link>

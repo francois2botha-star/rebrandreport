@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
-import type { UserRecord } from '../types/domain';
+import type { Role, UserRecord } from '../types/domain';
 import { enrichWorkspaceAccess } from '../constants/workspaces';
+import { sanitizePermissionOverrides } from '../utils/permissions';
 
 type ProfileRow = {
   name: string;
@@ -12,6 +13,7 @@ type ProfileRow = {
   avatar_url?: string | null;
   logo_url?: string | null;
   workspace_ids?: string[] | null;
+  permission_overrides?: Record<string, unknown> | null;
 };
 
 export class UserProfilesNotConfiguredError extends Error {
@@ -39,6 +41,21 @@ async function hydrateAuthSession() {
   await supabase?.auth.getSession();
 }
 
+function profileRowToUser(row: ProfileRow): UserRecord {
+  return enrichWorkspaceAccess({
+    name: row.name,
+    role: row.role,
+    branch: row.branch ?? undefined,
+    company: row.company ?? undefined,
+    profileTitle: row.profile_title ?? undefined,
+    avatarUrl: row.avatar_url ?? undefined,
+    logoUrl: row.logo_url ?? undefined,
+    workspaceIds: Array.isArray(row.workspace_ids) ? row.workspace_ids : undefined,
+    email: row.email,
+    permissionOverrides: sanitizePermissionOverrides(row.permission_overrides),
+  });
+}
+
 export async function getUsers(): Promise<UserRecord[]> {
   if (!supabase) {
     return [];
@@ -48,13 +65,13 @@ export async function getUsers(): Promise<UserRecord[]> {
 
   const profileResult = await supabase
     .from('profiles')
-    .select('name, role, branch, email, company, profile_title, avatar_url, logo_url, workspace_ids')
+    .select('name, role, branch, email, company, profile_title, avatar_url, logo_url, workspace_ids, permission_overrides')
     .order('name', { ascending: true });
 
   let data: Partial<ProfileRow>[] | null = profileResult.data as Partial<ProfileRow>[] | null;
   let error = profileResult.error;
 
-  if (['company', 'profile_title', 'avatar_url', 'logo_url', 'workspace_ids'].some((column) => error?.message.toLowerCase().includes(column))) {
+  if (['company', 'profile_title', 'avatar_url', 'logo_url', 'workspace_ids', 'permission_overrides'].some((column) => error?.message.toLowerCase().includes(column))) {
     const fallbackResult = await supabase
       .from('profiles')
       .select('name, role, branch, email')
@@ -76,17 +93,7 @@ export async function getUsers(): Promise<UserRecord[]> {
     return [];
   }
 
-  return (data as ProfileRow[]).map((row) => enrichWorkspaceAccess({
-    name: row.name,
-    role: row.role,
-    branch: row.branch ?? undefined,
-    company: row.company ?? undefined,
-    profileTitle: row.profile_title ?? undefined,
-    avatarUrl: row.avatar_url ?? undefined,
-    logoUrl: row.logo_url ?? undefined,
-    workspaceIds: Array.isArray(row.workspace_ids) ? row.workspace_ids : undefined,
-    email: row.email,
-  }));
+  return (data as ProfileRow[]).map(profileRowToUser);
 }
 
 export async function getUsersResult(): Promise<UsersResult> {
@@ -112,6 +119,12 @@ export type CreateUserProfileInput = {
   email: string;
   role: UserRecord['role'];
   branch?: string;
+};
+
+export type UpdateUserAccessControlsInput = {
+  email: string;
+  role: Role;
+  permissionOverrides?: Record<string, boolean>;
 };
 
 async function getFunctionErrorMessage(error: Error) {
@@ -192,4 +205,36 @@ export async function createUserProfile(input: CreateUserProfileInput): Promise<
     branch: data.branch ?? undefined,
     email: data.email,
   };
+}
+
+export async function updateUserAccessControls(input: UpdateUserAccessControlsInput): Promise<UserRecord> {
+  if (!supabase) {
+    throw new Error('Supabase is not configured.');
+  }
+
+  await hydrateAuthSession();
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const permissionOverrides = sanitizePermissionOverrides(input.permissionOverrides) ?? {};
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      role: input.role,
+      permission_overrides: permissionOverrides,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('email', normalizedEmail)
+    .select('name, role, branch, email, company, profile_title, avatar_url, logo_url, workspace_ids, permission_overrides')
+    .single();
+
+  if (error || !data) {
+    if (error?.message.toLowerCase().includes('permission_overrides')) {
+      throw new Error('The profiles.permission_overrides column is missing. Apply the updated Supabase profile schema before saving access controls.');
+    }
+
+    throw error ?? new Error('Unable to update user access controls.');
+  }
+
+  return profileRowToUser(data as ProfileRow);
 }

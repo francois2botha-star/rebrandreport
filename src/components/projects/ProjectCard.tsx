@@ -3,6 +3,7 @@ import type { Project, UserRecord } from '../../types/domain';
 
 const statusTone: Record<Project['status'], string> = {
   completed: 'bg-emerald-400/15 text-emerald-200 ring-emerald-400/30',
+  busy: 'bg-cyan-400/15 text-cyan-200 ring-cyan-400/30',
   in_progress: 'bg-sky-400/15 text-sky-200 ring-sky-400/30',
   awaiting_approval: 'bg-amber-400/15 text-amber-200 ring-amber-400/30',
   delayed: 'bg-red-400/15 text-red-200 ring-red-400/30',

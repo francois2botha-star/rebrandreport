@@ -1,17 +1,17 @@
 import type { UserRecord, Workspace } from '../types/domain';
 
-export const defaultGraphicsPartner = 'Colourpix (Pty) Ltd';
+export const defaultGraphicsPartner = 'Colourpix CC';
+export const rolloutAppEmail = 'rollout@colourpix.co.za';
 export const platformOwnerEmail = ['francois', 'colourpix.co.za'].join('@');
 export const platformOwnerEmails = [platformOwnerEmail, 'bd@colourpix.co.za'];
-const privateRolloutInboxUser = ['francois2', 'botha'].join('');
-const privateRolloutInboxDomain = 'gmail.com';
-export const privateRolloutRequestInbox = `${privateRolloutInboxUser}@${privateRolloutInboxDomain}`;
+export const accessControlAdminEmails = [platformOwnerEmail, 'bd@colourpix.co.za', 'beverley@colourpix.co.za'];
+export const privateRolloutRequestInbox = rolloutAppEmail;
 export const allWorkspaceAdminEmails = platformOwnerEmails;
 
 export const workspaceAdminContact = {
   name: 'Workspace administrator',
   company: defaultGraphicsPartner,
-  emails: allWorkspaceAdminEmails,
+  emails: [rolloutAppEmail],
 } as const;
 
 export const rolloutSupportContact = {
@@ -27,7 +27,7 @@ export const defaultWorkspace: Workspace = {
   graphicsPartner: defaultGraphicsPartner,
   clientLogoUrl: '',
   servicePartnerLogoUrl: '',
-  description: 'Custom operational workspace managed by Colourpix (Pty) Ltd for PSG Wealth Insure project delivery.',
+  description: 'Custom operational workspace managed by Colourpix CC for PSG Wealth Insure project delivery.',
   status: 'active',
 };
 
@@ -35,6 +35,10 @@ export const configuredWorkspaces: Workspace[] = [defaultWorkspace];
 
 export function isAllWorkspaceAdmin(email: string | undefined) {
   return Boolean(email && allWorkspaceAdminEmails.includes(email.trim().toLowerCase()));
+}
+
+export function isAccessControlAdmin(email: string | undefined) {
+  return Boolean(email && accessControlAdminEmails.includes(email.trim().toLowerCase()));
 }
 
 export function enrichWorkspaceAccess(user: UserRecord): UserRecord {

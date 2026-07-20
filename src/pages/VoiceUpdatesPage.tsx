@@ -51,7 +51,7 @@ type SpeechRecognitionInstance = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
-const statusOptions: ProjectStatus[] = ['in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled', 'completed'];
+const statusOptions: ProjectStatus[] = ['busy', 'in_progress', 'awaiting_approval', 'delayed', 'on_hold', 'cancelled', 'completed'];
 const genericProjectWords = new Set(['psg', 'branch', 'office', 'wealth', 'insure', 'signage', 'project', 'site', 'location', 'rollout', 'service']);
 const voicePromptChips = [
   'Say the site or project ID first',
@@ -80,7 +80,7 @@ function statusForStage(stage: ProjectStage, fallback: ProjectStatus): ProjectSt
     return 'awaiting_approval';
   }
 
-  return fallback === 'completed' || fallback === 'cancelled' ? 'in_progress' : fallback;
+  return fallback === 'completed' || fallback === 'cancelled' ? 'busy' : fallback;
 }
 
 function normalise(value: string) {

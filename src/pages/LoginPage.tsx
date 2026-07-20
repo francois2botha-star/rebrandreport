@@ -71,7 +71,7 @@ export function LoginPage() {
               <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Current workspace</p>
               <p className="mt-1 font-medium text-white">{productBrand.workspace}</p>
             </div>
-            <p className="text-sm leading-6 text-slate-400">Sign in to see the projects, requests, files, questions, voice updates, and project journal entries that belong to your workspace.</p>
+            <p className="text-sm leading-6 text-slate-400">Sign in to see the projects, requests, files, questions, and project journal entries that belong to your workspace.</p>
           </div>
 
           <form onSubmit={onSubmit} className="mt-6 rounded-3xl border border-white/10 bg-slate-950/55 p-5">

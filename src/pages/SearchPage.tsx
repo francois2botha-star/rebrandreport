@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { FileText, Mic2 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { getProjects } from '../services/portalService';
 import { useAuth } from '../contexts/AuthContext';
 import { filterProjectsForUser } from '../utils/permissions';
@@ -67,10 +67,6 @@ export function SearchPage() {
                   <FileText className="h-4 w-4" />
                   Open project details
                 </span>
-              </Link>
-              <Link to={`/projects/${project.id}#voice-note`} className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-slate-100 transition hover:bg-white/10">
-                <Mic2 className="h-4 w-4" />
-                Add voice note
               </Link>
             </article>
           ))

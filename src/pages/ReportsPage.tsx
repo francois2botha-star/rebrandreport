@@ -22,6 +22,7 @@ type DateField = 'targetDate' | 'installationDate' | 'completionDate' | 'updated
 
 const statusLabels: Record<ProjectStatus, string> = {
   completed: 'Completed',
+  busy: 'Busy',
   in_progress: 'In progress',
   awaiting_approval: 'Awaiting approval',
   delayed: 'Delayed',

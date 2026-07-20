@@ -1,32 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { Mic2, Pause, Play, Send } from 'lucide-react';
 import { FileGrid } from '../components/uploads/FileGrid';
 import { Timeline } from '../components/timeline/Timeline';
 import { timelineStages } from '../constants/portal';
-import { addProjectComment, addProjectTask, answerProjectQuestion, askProjectQuestion, deleteProjectTask, getProjectById, getProjectFileUrl, markProjectQuestionRead, renameProjectFile, transcribeVoiceUpdateAudio, updateProjectTask, updateProjectWorkflow, uploadProjectFile, uploadVoiceUpdateAudio } from '../services/portalService';
+import { addProjectComment, addProjectTask, answerProjectQuestion, askProjectQuestion, deleteProjectTask, getProjectById, getProjectFileUrl, markProjectQuestionRead, renameProjectFile, updateProjectTask, updateProjectWorkflow, uploadProjectFile, upsertProjectStageTask } from '../services/portalService';
 import { getUsers } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 import { canViewProject, getAllowedStageOptions, getRolePolicy, getWorkflowDenialReason } from '../utils/permissions';
 import type { CommentItem, Project, ProjectFile, ProjectStatus, ProjectStage, TaskItem } from '../types/domain';
 
-type RecordingStatus = 'idle' | 'recording' | 'paused';
-
-type SpeechRecognitionInstance = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
-  onend: (() => void) | null;
-  onerror: (() => void) | null;
-};
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
-
 const statusOptions: Array<{ value: ProjectStatus; label: string }> = [
+  { value: 'busy', label: 'Busy' },
   { value: 'in_progress', label: 'In progress' },
   { value: 'awaiting_approval', label: 'Awaiting approval' },
   { value: 'completed', label: 'Completed' },
@@ -35,21 +20,46 @@ const statusOptions: Array<{ value: ProjectStatus; label: string }> = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+function calculateTimelineWorkflow(project: Project, changedStage: ProjectStage, completed: boolean) {
+  const activeIndex = timelineStages.indexOf(project.currentStage);
+  const completedStages = new Set<ProjectStage>();
+
+  timelineStages.forEach((timelineStage, index) => {
+    const stageTask = project.tasks.find((task) => task.stage === timelineStage);
+    if (stageTask?.completed || (activeIndex > 0 && index < activeIndex)) {
+      completedStages.add(timelineStage);
+    }
+  });
+
+  if (completed) {
+    completedStages.add(changedStage);
+  } else {
+    completedStages.delete(changedStage);
+  }
+
+  const completedCount = timelineStages.filter((timelineStage) => completedStages.has(timelineStage)).length;
+  const currentStage = timelineStages.find((timelineStage) => !completedStages.has(timelineStage)) ?? timelineStages[timelineStages.length - 1];
+  const status: ProjectStatus = completedCount === timelineStages.length
+    ? 'completed'
+    : currentStage === 'Awaiting Approval'
+      ? 'awaiting_approval'
+      : 'busy';
+
+  return {
+    currentStage,
+    status,
+    progress: Math.round((completedCount / timelineStages.length) * 100),
+  };
+}
+
 export function ProjectDetailPage() {
   const { projectId } = useParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const voiceTranscriptRef = useRef('');
-  const voiceRecognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const voiceRecordingStatusRef = useRef<RecordingStatus>('idle');
   const [stage, setStage] = useState<ProjectStage>('New Project');
   const [status, setStatus] = useState<ProjectStatus>('in_progress');
   const [progress, setProgress] = useState(0);
   const [commentMessage, setCommentMessage] = useState('');
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const [voiceRecordingStatus, setVoiceRecordingStatusState] = useState<RecordingStatus>('idle');
-  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
-  const [voiceAudioFile, setVoiceAudioFile] = useState<File | null>(null);
   const [questionMessage, setQuestionMessage] = useState('');
   const [questionStage, setQuestionStage] = useState<'' | ProjectStage>('');
   const [answeringQuestionId, setAnsweringQuestionId] = useState<string | null>(null);
@@ -83,27 +93,8 @@ export function ProjectDetailPage() {
       setStage(project.currentStage);
       setStatus(project.status);
       setProgress(project.progress);
-
-      if (globalThis.location.hash === '#voice-note') {
-        requestAnimationFrame(() => document.getElementById('voice-note')?.scrollIntoView({ block: 'start' }));
-      }
     }
   }, [project]);
-
-  useEffect(() => () => {
-    voiceRecognitionRef.current?.stop();
-  }, []);
-
-  function setVoiceRecordingStatus(nextStatus: RecordingStatus) {
-    voiceRecordingStatusRef.current = nextStatus;
-    setVoiceRecordingStatusState(nextStatus);
-  }
-
-  function updateVoiceTranscript(nextTranscript: string) {
-    voiceTranscriptRef.current = nextTranscript;
-    setVoiceTranscript(nextTranscript);
-    setVoiceNotice(null);
-  }
 
   const syncProject = async (updatedProject: Project) => {
     queryClient.setQueryData(['project', projectId], updatedProject);
@@ -133,41 +124,6 @@ export function ProjectDetailPage() {
     onSuccess: async (updatedProject) => {
       setCommentMessage('');
       await syncProject(updatedProject);
-    },
-  });
-
-  const voiceCommentMutation = useMutation({
-    mutationFn: () => addProjectComment({
-      projectId: projectId ?? '',
-      author: user?.name ?? 'Workspace user',
-      message: `Voice note: ${voiceTranscriptRef.current.trim()}`,
-    }),
-    onSuccess: async (updatedProject) => {
-      updateVoiceTranscript('');
-      setVoiceAudioFile(null);
-      setVoiceRecordingStatus('idle');
-      setVoiceNotice('Voice note saved to this project.');
-      await syncProject(updatedProject);
-    },
-    onError: (error) => {
-      setVoiceNotice(error instanceof Error ? error.message : 'Unable to save the voice note.');
-    },
-  });
-
-  const projectVoiceTranscribeMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const upload = await uploadVoiceUpdateAudio(file);
-      return transcribeVoiceUpdateAudio(upload.path);
-    },
-    onMutate: () => {
-      setVoiceNotice('Transcribing voice note. Keep this project open until the transcript appears.');
-    },
-    onSuccess: (nextTranscript) => {
-      updateVoiceTranscript(nextTranscript);
-      setVoiceNotice('Voice note transcribed. Review the text, then save it to this project.');
-    },
-    onError: (error) => {
-      setVoiceNotice(error instanceof Error ? error.message : 'Voice note transcription failed.');
     },
   });
 
@@ -252,6 +208,34 @@ export function ProjectDetailPage() {
     },
   });
 
+  const timelineTaskMutation = useMutation({
+    mutationFn: async ({ stage: timelineStage, completed, assigneeEmail }: { stage: ProjectStage; completed?: boolean; assigneeEmail?: string }) => {
+      const assignee = assigneeEmail !== undefined ? getAssignee(assigneeEmail) : undefined;
+      let updatedProject = await upsertProjectStageTask({
+        projectId: projectId ?? '',
+        stage: timelineStage,
+        completed,
+        assigneeName: assigneeEmail !== undefined ? assignee?.name : undefined,
+        assigneeEmail,
+        actor: user?.name ?? 'Workspace user',
+      });
+
+      if (completed !== undefined) {
+        const workflow = calculateTimelineWorkflow(updatedProject, timelineStage, completed);
+        updatedProject = await updateProjectWorkflow({
+          projectId: projectId ?? '',
+          currentStage: workflow.currentStage,
+          status: workflow.status,
+          progress: workflow.progress,
+          actor: user?.name ?? 'Workspace user',
+        });
+      }
+
+      return updatedProject;
+    },
+    onSuccess: syncProject,
+  });
+
   const deleteTaskMutation = useMutation({
     mutationFn: (task: TaskItem) => deleteProjectTask({
       projectId: projectId ?? '',
@@ -315,76 +299,17 @@ export function ProjectDetailPage() {
   });
 
   const fileError = uploadMutation.error ?? previewMutation.error ?? downloadMutation.error;
-  const workflowError = workflowMutation.error ?? commentMutation.error ?? questionMutation.error ?? answerQuestionMutation.error ?? readQuestionMutation.error ?? taskMutation.error ?? updateTaskMutation.error ?? deleteTaskMutation.error;
+  const workflowError = workflowMutation.error ?? timelineTaskMutation.error ?? commentMutation.error ?? questionMutation.error ?? answerQuestionMutation.error ?? readQuestionMutation.error ?? taskMutation.error ?? updateTaskMutation.error ?? deleteTaskMutation.error;
   const rolePolicy = getRolePolicy(user);
   const canAdministerProjectDetails = Boolean(user?.isPlatformOwner);
   const canUploadFiles = canAdministerProjectDetails && Boolean(rolePolicy?.files.canUploadFiles);
   const canAddComments = Boolean(rolePolicy?.communication.canCreateComments);
   const canAskColourpix = Boolean(rolePolicy?.communication.canAskQuestions);
   const canAnswerColourpixQuestions = canAdministerProjectDetails && Boolean(rolePolicy?.communication.canAnswerQuestions);
-  const canAddTasks = Boolean(user);
-  const canCompleteTasks = Boolean(user);
+  const canAddTasks = Boolean(rolePolicy?.tasks.canCreateTasks);
+  const canCompleteTasks = Boolean(rolePolicy?.tasks.canCompleteTasks);
+  const canAssignTasks = Boolean(rolePolicy?.tasks.canAssignTasks || rolePolicy?.tasks.canReassignTasks);
   const canDeleteTasks = canAdministerProjectDetails && Boolean(rolePolicy?.tasks.canDeleteTasks);
-  const isVoiceRecording = voiceRecordingStatus === 'recording';
-  const isVoiceRecordingPaused = voiceRecordingStatus === 'paused';
-  const hasVoiceTranscript = Boolean(voiceTranscript.trim());
-
-  function startProjectVoiceNote() {
-    if (voiceRecordingStatusRef.current === 'recording') {
-      return;
-    }
-
-    const Recognition = ((globalThis as typeof globalThis & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition
-      ?? (globalThis as typeof globalThis & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition);
-
-    if (typeof Recognition !== 'function') {
-      setVoiceNotice('Voice dictation is not available in this browser. Upload an audio file or type the update instead.');
-      return;
-    }
-
-    const recognition = new Recognition();
-    voiceRecognitionRef.current = recognition;
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = 'en-ZA';
-    recognition.onresult = (event) => {
-      const text = Array.from(event.results).map((result) => result[0].transcript).join(' ');
-      const currentTranscript = voiceTranscriptRef.current.trim();
-      updateVoiceTranscript(`${currentTranscript}${currentTranscript ? ' ' : ''}${text}`.trim());
-    };
-    recognition.onend = () => {
-      voiceRecognitionRef.current = null;
-      if (voiceRecordingStatusRef.current === 'recording') {
-        setVoiceRecordingStatus('paused');
-      }
-    };
-    recognition.onerror = () => {
-      voiceRecognitionRef.current = null;
-      setVoiceRecordingStatus('paused');
-      setVoiceNotice('Recording paused after a browser dictation error. Continue recording or save the transcript already captured.');
-    };
-    recognition.start();
-    setVoiceRecordingStatus('recording');
-    setVoiceNotice(isVoiceRecordingPaused ? 'Recording resumed for this project.' : 'Recording started for this project.');
-  }
-
-  function pauseProjectVoiceNote() {
-    if (voiceRecordingStatusRef.current !== 'recording') {
-      return;
-    }
-
-    setVoiceRecordingStatus('paused');
-    voiceRecognitionRef.current?.stop();
-    setVoiceNotice('Recording paused. Continue recording or save this note to the project.');
-  }
-
-  function saveProjectVoiceNote() {
-    if (voiceRecognitionRef.current) {
-      voiceRecognitionRef.current.stop();
-    }
-    setVoiceRecordingStatus('idle');
-    voiceCommentMutation.mutate();
-  }
 
   function startAnswer(question: CommentItem) {
     setAnsweringQuestionId(question.id ?? null);
@@ -413,6 +338,8 @@ export function ProjectDetailPage() {
   const projectComments = selectedProject.comments.filter((comment) => comment.kind !== 'question');
   const isQuestionRequester = (question: CommentItem) => (question.requesterEmail ? question.requesterEmail === user?.email : question.author === user?.name);
   const unreadAnswers = projectQuestions.filter((question) => question.status === 'answered' && question.unreadForRequester && isQuestionRequester(question));
+  const adHocTasks = selectedProject.tasks.filter((task) => !task.stage);
+  const canUpdateTimelineStages = canViewProject(user, selectedProject);
   const allowedStageOptions = getAllowedStageOptions(user, selectedProject, timelineStages);
   const hasAllowedStageChange = allowedStageOptions.some((item) => item !== selectedProject.currentStage);
   const workflowDenialReason = getWorkflowDenialReason(user, selectedProject, { currentStage: stage, status, progress });
@@ -440,17 +367,17 @@ export function ProjectDetailPage() {
         </div>
       </section>
 
-      <section id="voice-note" className="rounded-3xl border border-sky-400/20 bg-sky-500/10 p-6 shadow-soft scroll-mt-24">
+      <section id="project-note" className="rounded-3xl border border-sky-400/20 bg-sky-500/10 p-6 shadow-soft scroll-mt-24">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.24em] text-sky-200">Send Francois an update</p>
-            <h3 className="mt-2 text-lg font-semibold text-white">Leave a text or voice note for this project</h3>
+            <h3 className="mt-2 text-lg font-semibold text-white">Leave a text update for this project</h3>
             <p className="mt-1 text-sm leading-6 text-slate-300">These notes do not change the project details directly. They are saved to the project journal and sent to Francois for review.</p>
           </div>
           <Link to="/search" className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10">Find another project</Link>
         </div>
 
-        <div id="project-note" className="mt-5 grid gap-3 scroll-mt-24">
+        <div className="mt-5 grid gap-3">
           <label className="grid gap-2 text-sm text-slate-300">
             Text update
             <textarea value={commentMessage} disabled={!canAddComments} onChange={(event) => setCommentMessage(event.target.value)} rows={3} placeholder={canAddComments ? 'Type what changed, what is needed, or what Francois should check...' : 'Commenting restricted'} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base leading-7 text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6" />
@@ -459,47 +386,19 @@ export function ProjectDetailPage() {
             {commentMutation.isPending ? 'Sending update...' : 'Send text update'}
           </button>
         </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <button type="button" disabled={!canAddComments || isVoiceRecording} onClick={startProjectVoiceNote} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-sky-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">
-            {isVoiceRecordingPaused ? <Play className="h-4 w-4" /> : <Mic2 className="h-4 w-4" />}
-            {isVoiceRecording ? 'Listening...' : isVoiceRecordingPaused ? 'Continue recording' : 'Start recording'}
-          </button>
-          <button type="button" disabled={!isVoiceRecording} onClick={pauseProjectVoiceNote} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-amber-300/25 bg-amber-400/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15 disabled:cursor-not-allowed disabled:opacity-50">
-            <Pause className="h-4 w-4" />
-            Pause
-          </button>
-          <button type="button" disabled={!canAddComments || !hasVoiceTranscript || voiceCommentMutation.isPending} onClick={saveProjectVoiceNote} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/15 px-4 py-3 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50">
-            <Send className="h-4 w-4" />
-            {voiceCommentMutation.isPending ? 'Saving...' : 'Save note'}
-          </button>
-          <label className="inline-flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10">
-            <Mic2 className="h-4 w-4" />
-            Upload audio
-            <input type="file" accept="audio/aac,audio/m4a,audio/mp4,audio/mpeg,audio/ogg,audio/wav,audio/webm,video/mp4,.aac,.m4a,.mp3,.ogg,.wav,.webm,.mp4" className="sr-only" disabled={!canAddComments || projectVoiceTranscribeMutation.isPending} onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              setVoiceAudioFile(file);
-              if (file) {
-                projectVoiceTranscribeMutation.mutate(file);
-              }
-              event.target.value = '';
-            }} />
-          </label>
-        </div>
-
-        <label className="mt-4 grid gap-2 text-sm text-slate-300">
-          Voice note transcript
-          <textarea value={voiceTranscript} disabled={!canAddComments} onChange={(event) => updateVoiceTranscript(event.target.value)} rows={4} placeholder={canAddComments ? 'Record or type a quick project update...' : 'Voice updates restricted for your role'} className="rounded-2xl border border-white/10 bg-slate-900/80 px-4 py-3 text-base leading-7 text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50 disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm sm:leading-6" />
-        </label>
-        <div className="mt-3 flex flex-col gap-2 text-xs leading-5 text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <span>{voiceAudioFile ? `${voiceAudioFile.name} selected` : 'Voice notes also go to Francois for review before project details are changed.'}</span>
-          {projectVoiceTranscribeMutation.isPending ? <span className="text-sky-100">Transcribing audio...</span> : null}
-        </div>
-        {!canAddComments ? <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Your role can view this project but cannot add project voice notes.</p> : null}
-        {voiceNotice ? <p className="mt-3 rounded-2xl border border-sky-400/20 bg-sky-500/10 px-4 py-3 text-sm text-sky-100">{voiceNotice}</p> : null}
       </section>
 
-      <Timeline stages={timelineStages} activeStage={selectedProject.currentStage} />
+      <Timeline
+        stages={timelineStages}
+        activeStage={selectedProject.currentStage}
+        tasks={selectedProject.tasks}
+        users={users}
+        canCompleteStages={canUpdateTimelineStages}
+        canAssignStages={canAdministerProjectDetails && canAssignTasks}
+        isUpdating={timelineTaskMutation.isPending}
+        onToggleStage={(timelineStage, completed) => timelineTaskMutation.mutate({ stage: timelineStage, completed })}
+        onAssignStage={(timelineStage, assigneeEmail) => timelineTaskMutation.mutate({ stage: timelineStage, assigneeEmail })}
+      />
 
       <section className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -628,7 +527,7 @@ export function ProjectDetailPage() {
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
           <h3 className="text-lg font-semibold text-white">Workflow Actions</h3>
-          <p className="mt-1 text-sm text-slate-400">Francois administers project detail changes. Other users should leave text or voice updates at the top of this page.</p>
+          <p className="mt-1 text-sm text-slate-400">Francois administers project detail changes. Other users should leave text updates at the top of this page.</p>
           {!canAdministerProjectDetails ? <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">Direct project detail editing is restricted. Leave an update above for Francois to review.</p> : null}
 
           <div className="mt-5 grid gap-4 md:grid-cols-3">
@@ -674,7 +573,7 @@ export function ProjectDetailPage() {
             </button>
           </div>
           <div className="mt-4 space-y-2">
-            {selectedProject.tasks.length > 0 ? selectedProject.tasks.map((task) => (
+            {adHocTasks.length > 0 ? adHocTasks.map((task) => (
               <div key={task.id} className="rounded-2xl border border-white/10 bg-slate-950/50 px-4 py-3 text-sm text-slate-200">
                 {editingTaskId === task.id ? (
                   <div className="grid gap-3">
@@ -742,7 +641,7 @@ export function ProjectDetailPage() {
             </div>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/6 p-6 shadow-soft">
-            <h3 className="text-lg font-semibold text-white">Text and voice update history</h3>
+            <h3 className="text-lg font-semibold text-white">Project update history</h3>
             <p className="mt-1 text-sm text-slate-400">Updates left for Francois appear here after they are saved.</p>
             <div className="mt-4 space-y-4">
               {projectComments.map((comment) => (

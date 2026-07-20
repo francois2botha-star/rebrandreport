@@ -19,7 +19,7 @@ interface NavigationItem {
 export function AppShell({ navigation, children, statusBanner }: { navigation: NavigationItem[]; children: ReactNode; statusBanner?: ReactNode }) {
   const { user, roleLabel, signOut } = useAuth();
   const navigate = useNavigate();
-  const mobileNavigation = navigation.filter((item) => ['/', '/projects', '/voice-updates', '/support', '/profile', '/search'].includes(item.to));
+  const mobileNavigation = navigation.filter((item) => ['/', '/projects', '/support', '/profile', '/search'].includes(item.to));
   const profileIdentity = getProfileIdentity(user);
   const profileName = profileIdentity.displayName || user?.name || 'Signed out';
   const quickLinks = [
@@ -147,7 +147,7 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
         </main>
 
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-slate-950/92 px-2 pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-2 backdrop-blur lg:hidden">
-          <div className="mx-auto grid max-w-xl grid-cols-6 gap-1">
+          <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
             {mobileNavigation.map((item) => {
               const Icon = item.icon;
               return (
@@ -162,7 +162,7 @@ export function AppShell({ navigation, children, statusBanner }: { navigation: N
                   }
                 >
                   <Icon className="h-5 w-5" />
-                  <span className="max-w-full truncate">{item.label.replace('Voice Updates', 'Voice')}</span>
+                  <span className="max-w-full truncate">{item.label}</span>
                 </NavLink>
               );
             })}
